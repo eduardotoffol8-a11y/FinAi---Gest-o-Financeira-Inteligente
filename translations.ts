@@ -12,12 +12,17 @@ export const translations = {
     income: 'Receitas Mensais',
     expenses: 'Despesas Totais',
     secure_system: 'SISTEMA SEGURO',
+    offline_mode: 'MODO OFFLINE ATIVO',
     new_entry: 'Novo Lançamento',
     export: 'Exportar',
     search: 'Pesquisar...',
     save: 'Salvar Alterações',
     language: 'Idioma do Sistema',
-    logout: 'Sair'
+    logout: 'Sair',
+    trial_info: 'Período de Teste: 60 Dias Restantes',
+    backup_vault: 'Cofre de Segurança',
+    export_backup: 'Baixar Backup Mestre',
+    import_backup: 'Restaurar Sistema'
   },
   'en-US': {
     dashboard: 'Dashboard',
@@ -31,12 +36,17 @@ export const translations = {
     income: 'Monthly Income',
     expenses: 'Total Expenses',
     secure_system: 'SECURE SYSTEM',
+    offline_mode: 'OFFLINE MODE ACTIVE',
     new_entry: 'New Entry',
     export: 'Export',
     search: 'Search...',
     save: 'Save Changes',
     language: 'System Language',
-    logout: 'Logout'
+    logout: 'Logout',
+    trial_info: 'Trial Period: 60 Days Left',
+    backup_vault: 'Security Vault',
+    export_backup: 'Download Master Backup',
+    import_backup: 'Restore System'
   },
   'es-ES': {
     dashboard: 'Panel',
@@ -50,11 +60,16 @@ export const translations = {
     income: 'Ingresos Mensuales',
     expenses: 'Gastos Totales',
     secure_system: 'SISTEMA SEGURO',
+    offline_mode: 'MODO OFFLINE ACTIVO',
     new_entry: 'Nueva Entrada',
     export: 'Exportar',
     search: 'Buscar...',
     save: 'Guardar Cambios',
     language: 'Idioma del Sistema',
-    logout: 'Cerrar Sesión'
+    logout: 'Cerrar Sesión',
+    trial_info: 'Periodo de Prueba: 60 Días Restantes',
+    backup_vault: 'Bóveda de Seguridad',
+    export_backup: 'Bajar Respaldo Maestro',
+    import_backup: 'Restaurar Sistema'
   }
 };

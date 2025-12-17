@@ -1,6 +1,6 @@
 
 import React, { useRef, useState } from 'react';
-import { Building, UploadCloud, Command, Save, Users, Check, Globe, Shield } from 'lucide-react';
+import { Building, UploadCloud, Command, Save, Users, Check, Globe, Shield, ShieldCheck, Download, FileJson, AlertTriangle } from 'lucide-react';
 import { TeamMember } from '../types';
 import { translations } from '../translations';
 
@@ -12,10 +12,12 @@ interface SettingsProps {
   setCompanyInfo: (info: any) => void;
   language: 'pt-BR' | 'en-US' | 'es-ES';
   setLanguage: (lang: 'pt-BR' | 'en-US' | 'es-ES') => void;
+  allData: any;
 }
 
-const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, currentRole, companyInfo, setCompanyInfo, language, setLanguage }) => {
+const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, currentRole, companyInfo, setCompanyInfo, language, setLanguage, allData }) => {
     const logoInputRef = useRef<HTMLInputElement>(null);
+    const backupInputRef = useRef<HTMLInputElement>(null);
     const nameRef = useRef<HTMLInputElement>(null);
     const descRef = useRef<HTMLTextAreaElement>(null);
     const [isSaved, setIsSaved] = useState(false);
@@ -30,6 +32,17 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, currentR
         });
         setIsSaved(true);
         setTimeout(() => setIsSaved(false), 2000);
+    };
+
+    const handleExportBackup = () => {
+        const dataStr = JSON.stringify({ ...allData, companyInfo }, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        const exportFileDefaultName = `maestria_backup_${new Date().toISOString().split('T')[0]}.json`;
+        
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
     };
 
     const Section = ({ title, icon: Icon, children }: any) => (
@@ -67,10 +80,43 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, currentR
                     <div className="flex-1 space-y-6 w-full">
                         <input ref={nameRef} defaultValue={companyInfo.name} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold outline-none" placeholder="NOME" />
                         <textarea ref={descRef} defaultValue={companyInfo.description} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold outline-none min-h-[100px]" placeholder="MISSÃO" />
-                        <button onClick={handleSaveBranding} className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${isSaved ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white hover:bg-indigo-600'}`}>
+                        <button onClick={handleSaveBranding} className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${isSaved ? 'bg-emerald-500 text-white' : 'bg-slate-950 text-white hover:bg-indigo-600'}`}>
                             {isSaved ? <Check className="w-4 h-4"/> : <Save className="w-4 h-4"/>} {t.save}
                         </button>
                     </div>
+                 </div>
+             </Section>
+
+             <Section title={t.backup_vault} icon={ShieldCheck}>
+                 <div className="p-8 bg-slate-50 border border-slate-100 rounded-[2rem] flex flex-col md:flex-row items-center gap-8">
+                     <div className="flex-1">
+                         <h4 className="font-black text-slate-900 uppercase italic mb-2">{t.backup_vault}</h4>
+                         <p className="text-xs text-slate-400 font-medium leading-relaxed mb-6">Proteja seu patrimônio informacional. Baixe o arquivo mestre para armazenamento offline ou transferência de dados.</p>
+                         <div className="flex flex-wrap gap-4">
+                            <button onClick={handleExportBackup} className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 hover:border-indigo-100 transition shadow-sm">
+                                <Download className="w-4 h-4" /> {t.export_backup}
+                            </button>
+                            <button onClick={() => backupInputRef.current?.click()} className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50 hover:border-emerald-100 transition shadow-sm">
+                                <FileJson className="w-4 h-4" /> {t.import_backup}
+                            </button>
+                            <input type="file" ref={backupInputRef} className="hidden" accept=".json" onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file && confirm("Isso substituirá todos os dados atuais. Prosseguir?")) {
+                                    const reader = new FileReader();
+                                    reader.onload = (evt) => {
+                                        const data = JSON.parse(evt.target?.result as string);
+                                        localStorage.setItem('maestria_enterprise_v8_pro', JSON.stringify(data));
+                                        window.location.reload();
+                                    };
+                                    reader.readAsText(file);
+                                }
+                            }} />
+                         </div>
+                     </div>
+                     <div className="p-6 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 max-w-[200px]">
+                         <div className="flex items-center gap-2 mb-2 font-black text-[9px] uppercase"><AlertTriangle className="w-4 h-4"/> Risco Crítico</div>
+                         <p className="text-[10px] font-bold leading-tight">O backup contém dados sensíveis. Guarde-o em local seguro.</p>
+                     </div>
                  </div>
              </Section>
 

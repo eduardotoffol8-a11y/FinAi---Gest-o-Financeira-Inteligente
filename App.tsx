@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, Menu, FileText, Calendar as CalendarIcon, LogOut, UploadCloud, Plus, X, Loader2, CheckCircle2, Command, MessageSquare, Share2, Cloud } from 'lucide-react';
+// Added Clock to the imports from lucide-react
+import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, Menu, FileText, Calendar as CalendarIcon, LogOut, UploadCloud, Plus, X, Loader2, CheckCircle2, Command, MessageSquare, Share2, Cloud, WifiOff, ShieldCheck, Clock } from 'lucide-react';
 import { Transaction, ViewState, Contact, ScheduledItem, TeamMember, CorporateMessage, GeneratedReport } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionList from './components/TransactionList';
@@ -16,7 +17,7 @@ import CorporateChat from './components/CorporateChat';
 import { sendMessageToGemini } from './services/geminiService';
 import { translations } from './translations';
 
-const STORAGE_KEY = 'maestria_enterprise_v7_saas';
+const STORAGE_KEY = 'maestria_enterprise_v8_pro';
 
 function App() {
   const [user, setUser] = useState<TeamMember | null>(() => {
@@ -28,6 +29,19 @@ function App() {
     return (localStorage.getItem('maestria_lang') as any) || 'pt-BR';
   });
 
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const t = translations[language];
 
   const [companyInfo, setCompanyInfo] = useState(() => {
@@ -36,10 +50,12 @@ function App() {
       return saved ? JSON.parse(saved) : {
         name: 'MAESTRIA',
         description: 'Plataforma de comando financeiro neural.',
-        logo: null
+        logo: null,
+        trialStartDate: null,
+        isSubscribed: false
       };
     } catch {
-      return { name: 'MAESTRIA', description: 'Plataforma de comando financeiro neural.', logo: null };
+      return { name: 'MAESTRIA', description: 'Plataforma de comando financeiro neural.', logo: null, trialStartDate: null, isSubscribed: false };
     }
   });
 
@@ -117,7 +133,8 @@ function App() {
 
   const completeSubscription = () => {
     setShowSubscription(false);
-    const finalUser: TeamMember = { id: Date.now().toString(), name: 'Novo Gestor', role: 'admin', status: 'online' };
+    setCompanyInfo({ ...companyInfo, trialStartDate: new Date().toISOString(), isSubscribed: true });
+    const finalUser: TeamMember = { id: Date.now().toString(), name: 'Diretor Enterprise', role: 'admin', status: 'online' };
     setUser(finalUser);
     localStorage.setItem('maestria_auth', JSON.stringify(finalUser));
     setTeam(prev => [...prev, finalUser]);
@@ -170,7 +187,7 @@ function App() {
           </div>
           <div>
               <h1 className="font-black text-xl text-slate-900 tracking-tighter uppercase italic truncate max-w-[160px]">{companyInfo.name}</h1>
-              <p className="text-[10px] text-indigo-500 font-black uppercase tracking-[0.3em] mt-1">MaestrIA OS</p>
+              <p className="text-[10px] text-indigo-500 font-black uppercase tracking-[0.3em] mt-1">MaestrIA Enterprise</p>
           </div>
         </div>
 
@@ -195,12 +212,18 @@ function App() {
         <header className="h-24 bg-white/80 backdrop-blur-2xl border-b border-slate-100 flex items-center justify-between px-6 lg:px-12 z-[140]">
           <div className="flex items-center gap-6">
               <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase italic">{view}</h2>
-              <div className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black tracking-widest ${isSaving ? 'text-indigo-500 bg-indigo-50' : 'text-emerald-600 bg-emerald-50'}`}>
-                {isSaving ? <Loader2 className="w-3 h-3 animate-spin"/> : <CheckCircle2 className="w-3 h-3"/>} {isSaving ? 'SYNC' : t.secure_system}
+              <div className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black tracking-widest ${isOnline ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'}`}>
+                {isOnline ? <CheckCircle2 className="w-3 h-3"/> : <WifiOff className="w-3 h-3"/>} {isOnline ? t.secure_system : t.offline_mode}
               </div>
           </div>
           
           <div className="flex items-center gap-6">
+             {companyInfo.trialStartDate && (
+                <div className="hidden xl:flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-2xl">
+                    <Clock className="w-4 h-4 text-indigo-500" />
+                    <span className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">60 Dias Trial</span>
+                </div>
+             )}
              <button onClick={() => setIsChatOpen(!isChatOpen)} className="flex items-center gap-3 px-8 py-3.5 rounded-[1.25rem] text-xs font-black bg-slate-950 text-white shadow-xl hover:scale-105 transition-all">
                 <Sparkles className="w-4 h-4 text-indigo-400" /> <span>MAESTRIA - GPT</span>
              </button>
@@ -238,6 +261,7 @@ function App() {
                     onUpdateMember={handleUpdateTeamMember}
                     language={language}
                     setLanguage={setLanguage as any}
+                    allData={{ transactions, contacts, schedule, team, corporateMessages }}
                   />
                 )}
             </div>
