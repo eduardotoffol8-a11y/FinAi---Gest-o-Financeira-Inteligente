@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, FileText, Calendar as CalendarIcon, LogOut, Command, MessageSquare, CheckCircle2, WifiOff, Clock, Loader2 } from 'lucide-react';
+import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, FileText, Calendar as CalendarIcon, LogOut, Command, MessageSquare, CheckCircle2, WifiOff, Clock, Loader2, Monitor } from 'lucide-react';
 import { Transaction, ViewState, Contact, ScheduledItem, TeamMember, CorporateMessage } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionList from './components/TransactionList';
@@ -17,31 +17,7 @@ import { translations } from './translations';
 
 const STORAGE_KEY = 'maestria_v11_enterprise_stable';
 
-const INITIAL_TRANSACTIONS: Transaction[] = [
-  { id: 'L001', date: '2025-01-05', description: 'Recebimento de cliente Ana Souza', type: 'income', amount: 2500.00, category: 'Vendas', status: 'paid', supplier: 'Ana Souza' },
-  { id: 'L002', date: '2025-01-06', description: 'Pagamento fornecedor SupplyMax', type: 'expense', amount: 1200.00, category: 'Compras', status: 'paid', supplier: 'Ricardo Almeida' },
-  { id: 'L003', date: '2025-01-07', description: 'Pagamento de aluguel', type: 'expense', amount: 3000.00, category: 'Aluguel', status: 'paid' },
-  { id: 'L004', date: '2025-01-08', description: 'Recebimento de cliente João Pereira', type: 'income', amount: 1800.00, category: 'Vendas', status: 'paid', supplier: 'João Pereira' },
-  { id: 'L005', date: '2025-01-09', description: 'Compra de material de escritório', type: 'expense', amount: 450.00, category: 'Operacional', status: 'paid' },
-  { id: 'L006', date: '2025-01-10', description: 'Recebimento de cliente Maria Oliveira', type: 'income', amount: 3200.00, category: 'Vendas', status: 'paid', supplier: 'Maria Oliveira' },
-  { id: 'L007', date: '2025-01-11', description: 'Pagamento fornecedor FoodLine', type: 'expense', amount: 2100.00, category: 'Compras', status: 'paid', supplier: 'Marcos Silva' },
-  { id: 'L008', date: '2025-01-12', description: 'Transferência para conta poupança', type: 'expense', amount: 1000.00, category: 'Financeiro', status: 'paid' },
-  { id: 'L009', date: '2025-01-13', description: 'Recebimento de cliente Carlos Mendes', type: 'income', amount: 2750.00, category: 'Vendas', status: 'paid', supplier: 'Carlos Mendes' },
-  { id: 'L010', date: '2025-01-14', description: 'Pagamento de energia elétrica', type: 'expense', amount: 680.00, category: 'Utilidades', status: 'paid' },
-];
-
-const INITIAL_CONTACTS: Contact[] = [
-  { id: 'C001', name: 'Ana Souza', type: 'client', email: 'ana.souza@techwave.com', phone: '(47) 99999-1111', totalTraded: 2500, reliabilityScore: 100 },
-  { id: 'C002', name: 'João Pereira', type: 'client', email: 'joao.p@agromax.com', phone: '(11) 98888-2222', totalTraded: 1800, reliabilityScore: 100 },
-  { id: 'C003', name: 'Maria Oliveira', type: 'client', email: 'maria.o@greenlife.com', phone: '(21) 97777-3333', totalTraded: 3200, reliabilityScore: 100 },
-  { id: 'C004', name: 'Carlos Mendes', type: 'client', email: 'carlos.m@buildpro.com', phone: '(31) 96666-4444', totalTraded: 2750, reliabilityScore: 100 },
-  { id: 'C005', name: 'Fernanda Lima', type: 'client', email: 'fernanda.l@fp.com', phone: '(48) 95555-5555', totalTraded: 0, reliabilityScore: 100 },
-  { id: 'F001', name: 'Ricardo Almeida', type: 'supplier', email: 'ricardo.a@supplymax.com', phone: '(11) 94444-6666', totalTraded: 1200, reliabilityScore: 100 },
-  { id: 'F002', name: 'Patrícia Santos', type: 'supplier', email: 'patricia.s@gparts.com', phone: '(21) 93333-7777', totalTraded: 0, reliabilityScore: 100 },
-  { id: 'F003', name: 'Marcos Silva', type: 'supplier', email: 'marcos.s@foodline.com', phone: '(47) 92222-8888', totalTraded: 2100, reliabilityScore: 100 },
-  { id: 'F004', name: 'Juliana Costa', type: 'supplier', email: 'juliana.c@paperworld.com', phone: '(31) 91111-9999', totalTraded: 0, reliabilityScore: 100 },
-  { id: 'F005', name: 'Tiago Rocha', type: 'supplier', email: 'tiago.r@cleanpro.com', phone: '(48) 90000-0000', totalTraded: 0, reliabilityScore: 100 },
-];
+const DEFAULT_CATEGORIES = ['Alimentação', 'Limpeza', 'Funcionários', 'Impostos', 'Material', 'Operacional', 'Marketing', 'Vendas', 'Aluguel', 'Financeiro', 'Utilidades'];
 
 function App() {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -77,6 +53,7 @@ function App() {
   const [schedule, setSchedule] = useState<ScheduledItem[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [corporateMessages, setCorporateMessages] = useState<CorporateMessage[]>([]);
+  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
@@ -90,22 +67,15 @@ function App() {
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
-        setTransactions(parsed.transactions || INITIAL_TRANSACTIONS);
-        setContacts(parsed.contacts || INITIAL_CONTACTS);
+        setTransactions(parsed.transactions || []);
+        setContacts(parsed.contacts || []);
         setSchedule(parsed.schedule || []);
         setTeam(parsed.team || []);
         setCorporateMessages(parsed.corporateMessages || []);
+        setCategories(parsed.categories || DEFAULT_CATEGORIES);
       } catch (e) { console.error("Data Load Error"); }
-    } else {
-      setTransactions(INITIAL_TRANSACTIONS);
-      setContacts(INITIAL_CONTACTS);
     }
     
-    setTeam(prev => prev.length > 0 ? prev : [
-      { id: '1', name: 'Gestor Master', role: 'admin', status: 'online' },
-      { id: '2', name: 'Analista de Dados', role: 'leader', status: 'online' }
-    ]);
-
     setIsLoaded(true);
 
     const handleOnline = () => setIsOnline(true);
@@ -120,11 +90,11 @@ function App() {
 
   useEffect(() => {
     if (isLoaded && user) {
-      const data = { transactions, contacts, schedule, team, corporateMessages };
+      const data = { transactions, contacts, schedule, team, corporateMessages, categories };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       localStorage.setItem('maestria_auth', JSON.stringify(user));
     }
-  }, [transactions, contacts, schedule, team, corporateMessages, isLoaded, user]);
+  }, [transactions, contacts, schedule, team, corporateMessages, categories, isLoaded, user]);
 
   useEffect(() => {
     localStorage.setItem('maestria_brand', JSON.stringify(companyInfo));
@@ -144,6 +114,8 @@ function App() {
       <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500">Sincronizando Ecossistema MaestrIA...</p>
     </div>
   );
+
+  if (view === ViewState.LANDING) return <Subscription onConfirm={() => setView(ViewState.DASHBOARD)} onCancel={() => setView(ViewState.DASHBOARD)} />;
 
   if (!user) return <Auth onLogin={handleLogin} />;
 
@@ -188,6 +160,7 @@ function App() {
         </nav>
 
         <div className="pt-8 border-t border-slate-100 space-y-3">
+            <NavItem icon={Monitor} label="Apresentação" active={view === ViewState.LANDING} onClick={() => setView(ViewState.LANDING)} />
             <NavItem icon={SettingsIcon} label={t.settings} active={view === ViewState.SETTINGS} onClick={() => setView(ViewState.SETTINGS)} />
             <button onClick={() => { setUser(null); localStorage.removeItem('maestria_auth'); }} className="w-full flex items-center gap-4 px-6 py-5 rounded-[1.5rem] text-[10px] font-black text-slate-400 hover:text-rose-600 transition-all uppercase tracking-widest"><LogOut className="w-5 h-5"/> {t.logout}</button>
         </div>
@@ -228,12 +201,12 @@ function App() {
                     onOpenChatWithPrompt={(p) => { setInitialChatPrompt(p); setIsChatOpen(true); }}
                   />
                 )}
-                {view === ViewState.TRANSACTIONS && <TransactionList transactions={transactions} onEditTransaction={(t) => setTransactions(prev => prev.map(o => o.id === t.id ? t : o))} onDeleteTransaction={(id) => setTransactions(prev => prev.filter(t => t.id !== id))} onImportTransactions={(l) => setTransactions(prev => [...l, ...prev])} language={language} />}
+                {view === ViewState.TRANSACTIONS && <TransactionList transactions={transactions} categories={categories} onEditTransaction={(t) => setTransactions(prev => prev.map(o => o.id === t.id ? t : o))} onDeleteTransaction={(id) => setTransactions(prev => prev.filter(t => t.id !== id))} onImportTransactions={(l) => setTransactions(prev => [...l, ...prev])} language={language} />}
                 {view === ViewState.REPORTS && <Reports transactions={transactions} language={language} />}
                 {view === ViewState.TEAM_CHAT && <CorporateChat currentUser={user} team={team} messages={corporateMessages} onSendMessage={(rid, txt, opt) => setCorporateMessages(prev => [...prev, {id: Date.now().toString(), senderId: user.id, receiverId: rid, text: txt, timestamp: new Date(), ...opt}])} onEditMessage={(id, t) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, text: t} : m))} onDeleteMessage={(id) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, isDeleted: true} : m))} language={language} />}
                 {view === ViewState.SCHEDULE && <Schedule items={schedule} setItems={setSchedule} onAddTransaction={(t) => setTransactions(prev => [{...t, id: Date.now().toString()}, ...prev])} language={language} />}
                 {view === ViewState.CONTACTS && <Contacts contacts={contacts} onAddContact={(c) => setContacts(p => [c, ...p])} onEditContact={(c) => setContacts(p => p.map(o => o.id === c.id ? c : o))} onDeleteContact={(id) => setContacts(p => p.filter(c => c.id !== id))} onImportContacts={(l) => setContacts(p => [...l, ...p])} language={language} />}
-                {view === ViewState.SETTINGS && <Settings team={team} companyInfo={companyInfo} setCompanyInfo={setCompanyInfo} onUpdateMember={(m) => setTeam(prev => prev.map(o => o.id === m.id ? m : o))} language={language} setLanguage={setLanguage as any} allData={{transactions, contacts, schedule, team, corporateMessages}} />}
+                {view === ViewState.SETTINGS && <Settings team={team} categories={categories} setCategories={setCategories} companyInfo={companyInfo} setCompanyInfo={setCompanyInfo} onUpdateMember={(m) => setTeam(prev => prev.map(o => o.id === m.id ? m : o))} language={language} setLanguage={setLanguage as any} allData={{transactions, contacts, schedule, team, corporateMessages, categories}} />}
             </div>
         </div>
         <MobileNav currentView={view} onViewChange={setView} />

@@ -8,13 +8,14 @@ import * as XLSX from 'xlsx';
 
 interface TransactionListProps {
   transactions: Transaction[];
+  categories: string[];
   onEditTransaction: (transaction: Transaction) => void;
   onDeleteTransaction: (id: string) => void;
   onImportTransactions: (list: Transaction[]) => void;
   language: 'pt-BR' | 'en-US' | 'es-ES';
 }
 
-const TransactionList: React.FC<TransactionListProps> = ({ transactions, onEditTransaction, onDeleteTransaction, onImportTransactions, language }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, onEditTransaction, onDeleteTransaction, onImportTransactions, language }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -32,7 +33,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onEditT
       );
   }, [transactions, searchTerm]);
 
-  // Função de Scan IA: Agora adiciona automaticamente e abre o editor opcionalmente
   const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -47,7 +47,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onEditT
                 id: Date.now().toString(),
                 date: data.date || new Date().toISOString().split('T')[0],
                 description: data.description || 'Processado por MaestrIA',
-                category: data.category || 'Operacional',
+                category: data.category || (categories[0] || 'Operacional'),
                 amount: data.amount || 0,
                 type: data.type || 'expense',
                 status: 'pending',
@@ -58,14 +58,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onEditT
             };
             onImportTransactions([newTx]);
             setEditingTx(newTx);
-            setIsModalOpen(true); // Abre o editor para conferência final conforme solicitado
+            setIsModalOpen(true);
         } catch(e) { alert("Erro ao processar scan."); }
         finally { setIsProcessing(false); }
     };
     reader.readAsDataURL(file);
   };
 
-  // Importação em massa via Planilha
   const handleBulkImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -83,7 +82,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onEditT
             description: row.Descrição || row.description || 'Importação Manual',
             amount: parseFloat(row.Valor || row.amount || 0),
             type: (row.Tipo || row.type || 'expense').toLowerCase() === 'receita' ? 'income' : 'expense',
-            category: row.Categoria || row.category || 'Operacional',
+            category: row.Categoria || row.category || (categories[0] || 'Operacional'),
             supplier: row.Parceiro || row.supplier || '',
             status: 'paid',
             source: 'manual'
@@ -202,17 +201,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onEditT
                             </div>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Categoria Principal</label>
-                                <select name="category" defaultValue={editingTx?.category || 'Operacional'} className="w-full bg-slate-50 border border-slate-200 p-5 rounded-2xl font-bold outline-none text-xs appearance-none">
-                                    <option>Operacional</option>
-                                    <option>Marketing</option>
-                                    <option>RH / Pessoas</option>
-                                    <option>Impostos / Taxas</option>
-                                    <option>Vendas</option>
-                                    <option>Estoque</option>
-                                    <option>Compras</option>
-                                    <option>Aluguel</option>
-                                    <option>Financeiro</option>
-                                    <option>Utilidades</option>
+                                <select name="category" defaultValue={editingTx?.category || categories[0]} className="w-full bg-slate-50 border border-slate-200 p-5 rounded-2xl font-bold outline-none text-xs appearance-none">
+                                    {categories.map(cat => (
+                                      <option key={cat} value={cat}>{cat}</option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="space-y-2">

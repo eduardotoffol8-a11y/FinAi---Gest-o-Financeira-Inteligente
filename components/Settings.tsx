@@ -1,12 +1,14 @@
 
 import React, { useRef, useState } from 'react';
-import { Building, UploadCloud, Command, Save, Users, Check, Globe, ShieldCheck, Download, FileJson, AlertTriangle, Fingerprint, Lock, Palette } from 'lucide-react';
+import { Building, UploadCloud, Command, Save, Users, Check, Globe, ShieldCheck, Download, FileJson, AlertTriangle, Fingerprint, Lock, Palette, MonitorPlay, Tags, Plus, Trash2 } from 'lucide-react';
 import { TeamMember } from '../types';
 import { translations } from '../translations';
 
 interface SettingsProps {
   team: TeamMember[];
   onUpdateMember: (member: TeamMember) => void;
+  categories: string[];
+  setCategories: (cats: string[]) => void;
   companyInfo: any;
   setCompanyInfo: (info: any) => void;
   language: 'pt-BR' | 'en-US' | 'es-ES';
@@ -14,16 +16,31 @@ interface SettingsProps {
   allData: any;
 }
 
-const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, companyInfo, setCompanyInfo, language, setLanguage, allData }) => {
+const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, categories, setCategories, companyInfo, setCompanyInfo, language, setLanguage, allData }) => {
     const logoInputRef = useRef<HTMLInputElement>(null);
     const backupInputRef = useRef<HTMLInputElement>(null);
     const [isSaved, setIsSaved] = useState(false);
+    const [newCat, setNewCat] = useState('');
     
     const t = translations[language];
 
     const handleSave = () => {
         setIsSaved(true);
         setTimeout(() => setIsSaved(false), 2000);
+    };
+
+    const handleAddCategory = () => {
+        if (!newCat.trim()) return;
+        if (categories.includes(newCat.trim())) {
+            alert("Categoria já existente.");
+            return;
+        }
+        setCategories([...categories, newCat.trim()]);
+        setNewCat('');
+    };
+
+    const handleRemoveCategory = (cat: string) => {
+        setCategories(categories.filter(c => c !== cat));
     };
 
     const handleExportBackup = () => {
@@ -100,9 +117,43 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, companyI
                             className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-8 py-5 text-slate-950 font-black outline-none focus:ring-4 focus:ring-brand/5 text-xl uppercase tracking-tighter" 
                         />
                     </div>
-                    <button onClick={handleSave} className="px-10 py-5 bg-slate-950 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-3 shadow-xl">
-                        {isSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />} {isSaved ? 'Confirmado' : t.save}
-                    </button>
+                 </div>
+             </div>
+
+             {/* Categories Section */}
+             <div className="bg-white p-12 rounded-[3.5rem] border border-slate-100 shadow-sm grid grid-cols-1 lg:grid-cols-3 gap-16">
+                 <div className="space-y-6">
+                    <div className="p-5 bg-indigo-50 text-indigo-600 rounded-[1.5rem] w-fit shadow-lg">
+                        <Tags className="w-8 h-8" />
+                    </div>
+                    <div>
+                        <h3 className="font-black text-slate-950 text-2xl uppercase italic tracking-tighter">Arquitetura de Dados</h3>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Categorias & Taxonomia</p>
+                    </div>
+                 </div>
+
+                 <div className="lg:col-span-2 space-y-8">
+                    <div className="flex gap-4">
+                        <input 
+                            value={newCat} 
+                            onChange={(e) => setNewCat(e.target.value)} 
+                            placeholder="Nova Categoria (Ex: Limpeza)" 
+                            className="flex-1 bg-slate-50 border border-slate-200 p-5 rounded-2xl font-bold outline-none text-xs uppercase"
+                        />
+                        <button onClick={handleAddCategory} className="bg-slate-950 text-white px-8 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-brand transition-all flex items-center gap-2">
+                           <Plus className="w-4 h-4"/> Adicionar
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {categories.map(cat => (
+                            <div key={cat} className="group flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-brand/20 transition-all">
+                                <span className="text-[10px] font-black uppercase text-slate-600 truncate">{cat}</span>
+                                <button onClick={() => handleRemoveCategory(cat)} className="text-slate-300 hover:text-rose-600 transition-colors opacity-0 group-hover:opacity-100">
+                                    <Trash2 className="w-3.5 h-3.5"/>
+                                </button>
+                            </div>
+                        ))}
+                    </div>
                  </div>
              </div>
 
@@ -117,9 +168,9 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, companyI
                 </div>
                 <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {[
-                      {id: 'pt-BR', label: 'Português', flag: '🇧🇷'},
-                      {id: 'en-US', label: 'English', flag: '🇺🇸'},
-                      {id: 'es-ES', label: 'Español', flag: '🇪🇸'}
+                      {id: 'pt-BR', flag: '🇧🇷', label: 'Português'},
+                      {id: 'en-US', flag: '🇺🇸', label: 'English'},
+                      {id: 'es-ES', flag: '🇪🇸', label: 'Español'}
                     ].map(lang => (
                         <button 
                           key={lang.id} 
@@ -133,41 +184,6 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, companyI
                 </div>
              </div>
 
-             {/* Governance Section */}
-             <div className="bg-white p-12 rounded-[3.5rem] border border-slate-100 shadow-sm">
-                <div className="flex items-center gap-6 mb-12">
-                    <div className="p-4 bg-slate-950 text-white rounded-2xl shadow-lg"><Users className="w-6 h-6"/></div>
-                    <h3 className="font-black text-slate-950 text-2xl uppercase italic tracking-tighter">{t.governance}</h3>
-                </div>
-                <div className="divide-y divide-slate-50">
-                    {team.map(member => (
-                        <div key={member.id} className="py-8 flex items-center justify-between group">
-                            <div className="flex items-center gap-5">
-                                <div className="w-14 h-14 bg-slate-950 rounded-2xl flex items-center justify-center text-white font-black italic shadow-xl">
-                                    {member.name.charAt(0)}
-                                </div>
-                                <div>
-                                    <p className="font-black text-slate-950 uppercase">{member.name}</p>
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{member.role}</span>
-                                </div>
-                            </div>
-                            <div className="flex gap-2">
-                                {['admin', 'leader', 'member'].map(role => (
-                                    <button 
-                                        key={role}
-                                        onClick={() => onUpdateMember({...member, role: role as any})}
-                                        className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${member.role === role ? 'bg-slate-950 text-white border-slate-950 shadow-md' : 'bg-white border-slate-100 text-slate-400 hover:bg-slate-50'}`}
-                                    >
-                                        {role}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-             </div>
-
-             {/* Security Vault */}
              <div className="p-12 bg-slate-950 text-white rounded-[3rem] shadow-2xl flex flex-col md:flex-row items-center gap-12">
                  <div className="flex-1">
                      <div className="flex items-center gap-3 mb-6 text-indigo-400 font-black uppercase text-xs">
@@ -184,7 +200,7 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, companyI
                                  const reader = new FileReader();
                                  reader.onload = (evt) => {
                                      const data = JSON.parse(evt.target?.result as string);
-                                     localStorage.setItem('maestria_v10_ultimate_stable', JSON.stringify(data));
+                                     localStorage.setItem('maestria_v11_enterprise_stable', JSON.stringify(data));
                                      window.location.reload();
                                  };
                                  reader.readAsText(file);

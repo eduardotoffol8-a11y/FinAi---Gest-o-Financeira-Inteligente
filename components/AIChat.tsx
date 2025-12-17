@@ -52,13 +52,17 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
 
     try {
       if (currentImage) {
-         const jsonStr = await analyzeDocument(currentImage.base64.split(',')[1], currentImage.type, 'transaction');
+         // Tenta analisar com contexto de categorias (carregadas do storage se possível)
+         const savedData = localStorage.getItem('maestria_v11_enterprise_stable');
+         const categories = savedData ? JSON.parse(savedData).categories : [];
+         
+         const jsonStr = await analyzeDocument(currentImage.base64.split(',')[1], currentImage.type, 'transaction', categories);
          const data = JSON.parse(jsonStr);
          if (data.amount) {
             const draft: Omit<Transaction, 'id'> = {
                 date: data.date || new Date().toISOString().split('T')[0],
-                description: data.description || 'Scan IA',
-                category: data.category || 'Operacional',
+                description: data.description || 'Scan IA Neural',
+                category: data.category || (categories[0] || 'Operacional'),
                 amount: Number(data.amount) || 0,
                 type: data.type === 'income' ? 'income' : 'expense',
                 status: 'pending',
@@ -71,7 +75,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
             setMessages(prev => [...prev, {
                 id: Date.now().toString(),
                 role: 'model',
-                text: 'Análise concluída via Visão Neural. Deseja efetivar este lançamento?',
+                text: `Identifiquei um registro de R$ ${draft.amount} para a categoria ${draft.category}. Deseja efetivar o lançamento?`,
                 timestamp: new Date(),
                 isDraft: true,
                 draftData: draft
@@ -84,7 +88,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
       const responseText = await sendMessageToGemini(newUserMsg.text, []);
       setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'model', text: responseText, timestamp: new Date() }]);
     } catch (error) {
-      setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'model', text: 'Tive uma interferência técnica. Poderia repetir?', timestamp: new Date() }]);
+      setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'model', text: 'Chave MaestrIA pendente. Verifique suas configurações neurais.', timestamp: new Date() }]);
     } finally {
       setIsLoading(false);
     }
@@ -125,11 +129,15 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
                               <span>Valor Detectado</span>
                               <span className="text-slate-900">R$ {msg.draftData.amount}</span>
                           </div>
+                          <div className="flex justify-between text-xs font-black uppercase text-slate-400 tracking-widest">
+                              <span>Categoria</span>
+                              <span className="text-indigo-600 italic">{msg.draftData.category}</span>
+                          </div>
                       </div>
                       <button onClick={() => { 
                         if (msg.draftData) {
                           onAddTransaction(msg.draftData); 
-                          setMessages(p => p.map(m => m.id === msg.id ? {...m, isDraft: false, text: 'Lançamento efetivado com sucesso!'} : m));
+                          setMessages(p => p.map(m => m.id === msg.id ? {...m, isDraft: false, text: 'Lançamento efetivado com sucesso no OS MaestrIA.'} : m));
                         }
                       }} className="w-full bg-indigo-600 text-white text-xs font-black py-4 rounded-xl shadow-lg hover:bg-indigo-700 transition-colors">EFETIVAR LANÇAMENTO</button>
                   </div>
@@ -150,8 +158,8 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
             placeholder="Comande sua Inteligência Financeira..."
             className="flex-1 bg-transparent focus:outline-none text-sm text-slate-900 font-bold"
           />
-          <button onClick={handleSendMessage} disabled={isLoading} className="p-2.5 bg-slate-900 text-white rounded-xl shadow-lg">
-             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+          <button onClick={handleSendMessage} disabled={isLoading} className="p-2.5 bg-slate-950 text-white rounded-xl shadow-lg">
+             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
           </button>
         </div>
       </div>

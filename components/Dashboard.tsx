@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { Wallet, TrendingDown, Zap, Bell, Sparkles, ArrowRight, Clock, Target, ShieldCheck } from 'lucide-react';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { Wallet, TrendingDown, Zap, Bell, Sparkles, ArrowRight, Clock, Target, ShieldCheck, Activity } from 'lucide-react';
 import { Transaction, ViewState } from '../types';
 import { translations } from '../translations';
 
@@ -18,6 +18,16 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const netIncome = totalIncome - totalExpense;
 
+  // Processamento de dados para o gráfico de radar (Composição por Categoria)
+  const categoryData = transactions.reduce((acc: any, tx) => {
+    if (tx.type === 'expense') {
+        const existing = acc.find((a: any) => a.subject === tx.category);
+        if (existing) existing.A += tx.amount;
+        else acc.push({ subject: tx.category, A: tx.amount, fullMark: 10000 });
+    }
+    return acc;
+  }, []).sort((a: any, b: any) => b.A - a.A).slice(0, 6);
+
   const StatCard = ({ title, value, trend, icon: Icon, colorClass, trendValue, viewTarget }: any) => (
     <button onClick={() => onViewChange?.(viewTarget || ViewState.TRANSACTIONS)} className="w-full text-left bg-white p-6 rounded-3xl border border-slate-100 transition-all hover:-translate-y-1 hover:shadow-xl group">
       <div className="flex justify-between items-start mb-4">
@@ -27,7 +37,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
           <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${trend === 'up' ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'}`}>{trendValue}</span>
       </div>
       <p className="text-[10px] uppercase font-black text-slate-400 mb-1">{title}</p>
-      <h3 className="text-3xl font-black text-slate-900 tracking-tight">R$ {value.toLocaleString()}</h3>
+      <h3 className="text-3xl font-black text-slate-900 tracking-tight">R$ {value.toLocaleString('pt-BR')}</h3>
     </button>
   );
 
@@ -40,20 +50,39 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <button onClick={() => onViewChange?.(ViewState.REPORTS)} className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm text-left hover:ring-2 hover:ring-brand/10 transition-all group">
-          <h3 className="text-xl font-black text-slate-900 italic tracking-tight mb-8 group-hover:text-brand">Fluxo Neural <span className="text-[10px] font-black uppercase text-slate-300 ml-2">(Ver Inteligência)</span></h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={[{name: 'D-3', v: 400}, {name: 'D-2', v: 300}, {name: 'D-1', v: 600}, {name: 'Hoje', v: 800}]}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                <Tooltip />
-                <Area type="monotone" dataKey="v" stroke="#6366f1" fill="#6366f1" fillOpacity={0.05} strokeWidth={4} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </button>
+        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <button onClick={() => onViewChange?.(ViewState.REPORTS)} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm text-left hover:ring-2 hover:ring-indigo-500/10 transition-all group overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-full -mr-12 -mt-12 opacity-50 group-hover:scale-125 transition-transform"></div>
+                <h3 className="text-xl font-black text-slate-950 italic tracking-tighter mb-8 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-indigo-500"/> Composição Neural
+                </h3>
+                <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={categoryData}>
+                            <PolarGrid stroke="#f1f5f9" />
+                            <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 900 }} />
+                            <Radar name="Gastos" dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.4} />
+                            <Tooltip />
+                        </RadarChart>
+                    </ResponsiveContainer>
+                </div>
+            </button>
+
+            <button onClick={() => onViewChange?.(ViewState.REPORTS)} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm text-left hover:ring-2 hover:ring-brand/10 transition-all group">
+                <h3 className="text-xl font-black text-slate-900 italic tracking-tighter mb-8 group-hover:text-brand">Fluxo Histórico</h3>
+                <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={[{name: 'D-3', v: 400}, {name: 'D-2', v: 300}, {name: 'D-1', v: 600}, {name: 'Hoje', v: 800}]}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                        <Tooltip />
+                        <Area type="monotone" dataKey="v" stroke="#6366f1" fill="#6366f1" fillOpacity={0.05} strokeWidth={4} />
+                    </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+            </button>
+        </div>
 
         <div className="bg-slate-950 text-white p-8 rounded-[2.5rem] flex flex-col shadow-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
@@ -68,12 +97,12 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
                   </div>
                   <p className="text-sm font-bold">Vencimentos monitorados pela IA.</p>
               </button>
-              <button onClick={() => onOpenChatWithPrompt?.("Faça uma auditoria rápida no meu caixa de hoje.")} className="w-full text-left bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-2xl hover:bg-indigo-500/20 transition-colors">
+              <button onClick={() => onOpenChatWithPrompt?.("Faça uma auditoria minuciosa focando em discrepâncias de categorias no caixa de hoje.")} className="w-full text-left bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-2xl hover:bg-indigo-500/20 transition-colors">
                   <div className="flex items-center gap-2 mb-1">
                       <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                      <span className="text-[10px] font-black uppercase text-slate-400">Auditoria Real-time</span>
+                      <span className="text-[10px] font-black uppercase text-slate-400">Auditoria Neural de Furos</span>
                   </div>
-                  <p className="text-sm font-bold">Solicitar auditoria neural agora.</p>
+                  <p className="text-sm font-bold">Detectar furos de caixa agora.</p>
               </button>
           </div>
           <button onClick={() => onViewChange?.(ViewState.REPORTS)} className="mt-8 flex items-center justify-between bg-white text-slate-900 p-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition shadow-xl relative z-10">
