@@ -18,16 +18,28 @@ const STORAGE_KEY = 'finai_enterprise_v5';
 function App() {
   const [user, setUser] = useState<TeamMember | null>(() => {
     const saved = localStorage.getItem('finai_auth_v5');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   });
 
   const [companyInfo, setCompanyInfo] = useState(() => {
     const saved = localStorage.getItem('finai_company_brand');
-    return saved ? JSON.parse(saved) : {
-      name: 'FINAI ENTERPRISE',
-      description: 'Célula de comando financeiro corporativo.',
-      logo: null
-    };
+    try {
+      return saved ? JSON.parse(saved) : {
+        name: 'FINAI ENTERPRISE',
+        description: 'Célula de comando financeiro corporativo.',
+        logo: null
+      };
+    } catch {
+      return {
+        name: 'FINAI ENTERPRISE',
+        description: 'Célula de comando financeiro corporativo.',
+        logo: null
+      };
+    }
   });
 
   const [view, setView] = useState<ViewState>(ViewState.DASHBOARD);
@@ -56,11 +68,13 @@ function App() {
     if (saved) {
       try {
         parsedData = JSON.parse(saved);
-        setTransactions(parsedData.transactions || []);
-        setContacts(parsedData.contacts || []);
-        setSchedule(parsedData.schedule || []);
-        setTeam(parsedData.team || []);
-        setCorporateMessages(parsedData.corporateMessages || []);
+        if (parsedData) {
+          setTransactions(parsedData.transactions || []);
+          setContacts(parsedData.contacts || []);
+          setSchedule(parsedData.schedule || []);
+          setTeam(parsedData.team || []);
+          setCorporateMessages(parsedData.corporateMessages || []);
+        }
       } catch (e) {
         console.error("Erro ao carregar dados locais:", e);
       }
