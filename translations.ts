@@ -19,10 +19,14 @@ export const translations = {
     save: 'Salvar Alterações',
     language: 'Idioma do Sistema',
     logout: 'Sair',
-    trial_info: 'Período de Teste: 60 Dias Restantes',
+    trial_info: '60 DIAS DE TESTE',
     backup_vault: 'Cofre de Segurança',
     export_backup: 'Baixar Backup Mestre',
-    import_backup: 'Restaurar Sistema'
+    import_backup: 'Restaurar Sistema',
+    governance: 'Governança de Equipe',
+    integrations: 'Integrações Externas',
+    connect_google: 'Conectar Google Calendar',
+    connect_outlook: 'Conectar Outlook'
   },
   'en-US': {
     dashboard: 'Dashboard',
@@ -43,10 +47,14 @@ export const translations = {
     save: 'Save Changes',
     language: 'System Language',
     logout: 'Logout',
-    trial_info: 'Trial Period: 60 Days Left',
+    trial_info: '60 DAYS TRIAL',
     backup_vault: 'Security Vault',
     export_backup: 'Download Master Backup',
-    import_backup: 'Restore System'
+    import_backup: 'Restore System',
+    governance: 'Team Governance',
+    integrations: 'External Integrations',
+    connect_google: 'Connect Google Calendar',
+    connect_outlook: 'Connect Outlook'
   },
   'es-ES': {
     dashboard: 'Panel',
@@ -67,9 +75,13 @@ export const translations = {
     save: 'Guardar Cambios',
     language: 'Idioma del Sistema',
     logout: 'Cerrar Sesión',
-    trial_info: 'Periodo de Prueba: 60 Días Restantes',
-    backup_vault: 'Bóveda de Seguridad',
+    trial_info: '60 DÍAS DE PRUEBA',
+    backup_vault: 'Bóveda de Segurança',
     export_backup: 'Bajar Respaldo Maestro',
-    import_backup: 'Restaurar Sistema'
+    import_backup: 'Restaurar Sistema',
+    governance: 'Gobernanza de Equipo',
+    integrations: 'Integraciones Externas',
+    connect_google: 'Conectar Google Calendar',
+    connect_outlook: 'Conectar Outlook'
   }
 };
