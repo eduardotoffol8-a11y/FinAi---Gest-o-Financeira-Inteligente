@@ -2,158 +2,109 @@
 import { GoogleGenAI } from "@google/genai";
 import { Transaction } from "../types";
 
-// Inicialização segura para evitar ReferenceError: process is not defined ou falhas de chave
 let ai: any = null;
 try {
   ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 } catch (e) {
-  console.error("FinAI: Falha ao inicializar motor de IA (Gemini). Funções inteligentes podem estar limitadas.", e);
+  console.error("MaestrIA: Falha ao inicializar motor neural.", e);
 }
 
 const SYSTEM_INSTRUCTION = `
-Você é o FinAI, o assistente virtual de finanças mais prestativo e profissional.
-Seu objetivo é ajudar gestores a entenderem seus números com clareza.
+Você é o MaestrIA, um CFO Virtual e Auditor Sênior de nível Big Four.
+Seu objetivo é fornecer inteligência financeira estratégica e auditoria de precisão.
 
-Diretrizes:
-1. Use português do Brasil claro e sem jargões técnicos excessivos.
-2. Seja proativo: se vir uma despesa alta, sugira como economizar.
-3. Seu tom é de um parceiro de negócios confiável.
-4. Sempre identifique-se como FinAI.
+Ao gerar relatórios:
+1. Use terminologia técnica correta (DRE, EBITDA, Margem de Contribuição, Capital de Giro).
+2. Estruture as respostas com seções claras: Sumário Executivo, Análise de Dados, Riscos Detectados e Recomendações.
+3. Utilize tabelas Markdown para apresentar números e comparativos.
+4. Identifique-se sempre como MaestrIA.
+5. O tom deve ser formal, executivo e extremamente analítico.
 `;
 
 export const sendMessageToGemini = async (
   message: string,
-  history: { role: string; parts: { text: string }[] }[] = [],
-  imageBase64?: string,
-  imageMimeType?: string
+  history: { role: string; parts: { text: string }[] }[] = []
 ): Promise<string> => {
-  if (!ai) return "O motor de IA está offline no momento. Verifique as configurações de sistema.";
-  
+  if (!ai) return "Motor MaestrIA Offline.";
   try {
-    const modelId = "gemini-3-flash-preview";
-    const parts: any[] = [{ text: message }];
-
-    if (imageBase64 && imageMimeType) {
-      parts.unshift({
-        inlineData: {
-          mimeType: imageMimeType,
-          data: imageBase64
-        }
-      });
-    }
-
-    const contents = [...history, { role: 'user', parts: parts }];
-
     const response = await ai.models.generateContent({
-      model: modelId,
-      contents: contents,
+      model: "gemini-3-flash-preview",
+      contents: [...history, { role: 'user', parts: [{ text: message }] }],
       config: { systemInstruction: SYSTEM_INSTRUCTION }
     });
+    return response.text || "Sem resposta do núcleo neural.";
+  } catch (error) { return "Interferência no processamento neural."; }
+};
 
-    return response.text || "Desculpe, tive um problema técnico. Pode repetir?";
-  } catch (error) {
-    console.error("Erro FinAI:", error);
-    return "Estou passando por uma manutenção rápida. Tente novamente em instantes.";
-  }
+export const generateExecutiveReport = async (transactions: Transaction[], period: string): Promise<string> => {
+  if (!ai) return "Relatório indisponível.";
+  const summary = transactions.map(t => `- ${t.date}: ${t.description} (R$ ${t.amount}) [${t.category}]`).join('\n');
+  const prompt = `Gere um Relatório Executivo de Desempenho para o período ${period}.
+  Dados:
+  ${summary}
+  
+  Exigências:
+  - Análise de tendências de receita vs despesa.
+  - Tabela com Top 5 categorias de gastos.
+  - Sugestões de otimização fiscal.
+  - Formato profissional para diretoria.`;
+  
+  const response = await ai.models.generateContent({
+    model: "gemini-3-pro-preview",
+    contents: { parts: [{ text: prompt }] },
+    config: { systemInstruction: SYSTEM_INSTRUCTION }
+  });
+  return response.text || "";
 };
 
 export const performAudit = async (transactions: Transaction[]): Promise<string> => {
-  if (!ai) return "Módulo de auditoria indisponível.";
+  if (!ai) return "Auditoria indisponível.";
+  const summary = transactions.map(t => `- ${t.date}: ${t.description} (R$ ${t.amount}) [${t.category}]`).join('\n');
+  const prompt = `Realize uma Auditoria Contábil e de Risco nas seguintes transações:
+  ${summary}
   
-  try {
-    const summary = transactions.map(t => `- ${t.date}: ${t.description} (R$ ${t.amount}) [${t.category}]`).join('\n');
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: {
-        parts: [{ text: `Realize uma auditoria financeira detalhada nestas transações. Procure por anomalias, gastos duplicados ou riscos de fluxo de caixa:\n${summary}` }]
-      },
-      config: { systemInstruction: "Você é um auditor financeiro sênior detalhista." }
-    });
-    return response.text || "Nenhuma irregularidade detectada no volume atual.";
-  } catch (e) { return "Erro ao conectar com o módulo de auditoria."; }
+  Exigências:
+  - Identificar duplicidades ou valores atípicos.
+  - Analisar conformidade com as categorias.
+  - Avaliar riscos de fluxo de caixa futuro.
+  - Concluir com um parecer de auditor sênior.`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: { parts: [{ text: prompt }] },
+    config: { systemInstruction: SYSTEM_INSTRUCTION }
+  });
+  return response.text || "";
 };
 
-export const getStrategicSuggestions = async (transactions: Transaction[], period: 'semanal' | 'mensal'): Promise<string> => {
-    if (!ai) return "Módulo estratégico indisponível.";
-    
-    try {
-      const summary = transactions.slice(0, 50).map(t => `- ${t.description}: R$ ${t.amount}`).join('\n');
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: {
-          parts: [{ text: `Com base nestes dados, dê 3 sugestões estratégicas de nível ${period} para melhorar o lucro da empresa:\n${summary}` }]
-        },
-        config: { systemInstruction: SYSTEM_INSTRUCTION }
-      });
-      return response.text || "Continue com a gestão atual.";
-    } catch (e) { return "Sugestões indisponíveis no momento."; }
+export const getStrategicSuggestions = async (transactions: Transaction[]): Promise<string> => {
+  if (!ai) return "Insights indisponíveis.";
+  const summary = transactions.slice(0, 30).map(t => `- ${t.description}: R$ ${t.amount}`).join('\n');
+  const prompt = `Como consultor estratégico MaestrIA, analise estes dados e forneça 3 planos de ação para aumentar a lucratividade imediata:
+  ${summary}`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: { parts: [{ text: prompt }] },
+    config: { systemInstruction: SYSTEM_INSTRUCTION }
+  });
+  return response.text || "";
 };
 
 export const analyzeReceipt = async (base64Data: string, mimeType: string): Promise<string> => {
     if (!ai) return "{}";
-    
     try {
         const response = await ai.models.generateContent({
             model: "gemini-3-flash-preview",
             contents: {
                 parts: [
                     { inlineData: { mimeType: mimeType, data: base64Data } },
-                    {
-                        text: `Analise este documento financeiro e extraia os dados para lançamento.
-                        Retorne APENAS um JSON:
-                        {
-                            "description": "Descrição amigável",
-                            "supplier": "Nome da Empresa",
-                            "amount": 0.00,
-                            "date": "YYYY-MM-DD",
-                            "category": "Categoria Sugerida",
-                            "type": "expense" | "income"
-                        }`
-                    }
+                    { text: `Extraia dados deste documento. JSON APENAS: {"description": "...", "supplier": "...", "amount": 0.00, "date": "YYYY-MM-DD", "category": "...", "type": "expense" | "income"}` }
                 ]
             }
         });
-        
         let text = response.text || "{}";
         text = text.replace(/```json/g, '').replace(/```/g, '').trim();
         return text;
-    } catch (e) {
-        return "{}";
-    }
+    } catch (e) { return "{}"; }
 }
-
-export const generateDashboardInsights = async (transactions: Transaction[]): Promise<string> => {
-  if (!ai) return "IA desconectada.";
-  
-  try {
-    const summary = transactions.slice(0, 30).map(t => `- ${t.date}: ${t.description} (R$ ${t.amount})`).join('\n');
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: {
-        parts: [{ text: `Analise estas transações e forneça 3 insights rápidos e estratégicos em português:\n${summary}` }]
-      },
-      config: { systemInstruction: SYSTEM_INSTRUCTION }
-    });
-    return response.text || "Processando dados neurais...";
-  } catch (error) {
-    return "Aguardando volume de dados para calibração estratégica.";
-  }
-};
-
-export const generateExecutiveReport = async (transactions: Transaction[], period: string): Promise<string> => {
-  if (!ai) return "Relatório indisponível.";
-  
-  try {
-    const summary = transactions.map(t => `- ${t.date}: ${t.description} (R$ ${t.amount})`).join('\n');
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
-      contents: {
-        parts: [{ text: `Gere um relatório executivo financeiro profissional para o período ${period} com base nestas transações:\n${summary}` }]
-      },
-      config: { systemInstruction: SYSTEM_INSTRUCTION }
-    });
-    return response.text || "Relatório executivo não disponível.";
-  } catch (error) {
-    return "Ocorreu um erro ao gerar o relatório.";
-  }
-};

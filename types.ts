@@ -12,6 +12,15 @@ export interface Transaction {
   supplier?: string;
 }
 
+export interface GeneratedReport {
+  id: string;
+  title: string;
+  content: string;
+  date: string;
+  type: 'audit' | 'strategic' | 'executive';
+  period: string;
+}
+
 export interface Contact {
   id: string;
   name: string;

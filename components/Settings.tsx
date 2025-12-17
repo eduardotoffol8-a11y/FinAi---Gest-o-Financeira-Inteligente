@@ -1,6 +1,6 @@
 
-import React, { useRef, useState, useEffect } from 'react';
-import { Building, UploadCloud, Command, Save, Users, Shield, Star } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Building, UploadCloud, Command, Save, Users, Check } from 'lucide-react';
 import { TeamMember } from '../types';
 
 interface SettingsProps {
@@ -13,19 +13,22 @@ interface SettingsProps {
 
 const Settings: React.FC<SettingsProps> = ({ team = [], onPromote, currentRole, companyInfo, setCompanyInfo }) => {
     const logoInputRef = useRef<HTMLInputElement>(null);
-    
-    // Estado local isolado para evitar re-renders globais durante a digitação
-    const [localName, setLocalName] = useState(companyInfo.name);
-    const [localDescription, setLocalDescription] = useState(companyInfo.description);
+    const nameRef = useRef<HTMLInputElement>(null);
+    const descRef = useRef<HTMLTextAreaElement>(null);
+    const [isSaved, setIsSaved] = useState(false);
 
-    // Sincroniza se a logo mudar ou na primeira carga
-    useEffect(() => {
-        setLocalName(companyInfo.name);
-        setLocalDescription(companyInfo.description);
-    }, [companyInfo.logo]);
-
-    const handleSync = () => {
-        setCompanyInfo({ ...companyInfo, name: localName, description: localDescription });
+    const handleSaveBranding = () => {
+        const newName = nameRef.current?.value || companyInfo.name;
+        const newDesc = descRef.current?.value || companyInfo.description;
+        
+        setCompanyInfo({
+            ...companyInfo,
+            name: newName.toUpperCase(),
+            description: newDesc
+        });
+        
+        setIsSaved(true);
+        setTimeout(() => setIsSaved(false), 2000);
     };
 
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,7 +36,8 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onPromote, currentRole, 
         if (file) {
             const reader = new FileReader();
             reader.onload = (evt) => {
-                setCompanyInfo({ ...companyInfo, logo: evt.target?.result as string });
+                const base64 = evt.target?.result as string;
+                setCompanyInfo({ ...companyInfo, logo: base64 });
             };
             reader.readAsDataURL(file);
         }
@@ -55,7 +59,7 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onPromote, currentRole, 
 
     return (
         <div className="max-w-4xl mx-auto animate-in fade-in duration-500 pb-32">
-             <h2 className="text-3xl font-black text-slate-900 mb-8 italic tracking-tighter uppercase">Configurações</h2>
+             <h2 className="text-3xl font-black text-slate-900 mb-8 italic tracking-tighter uppercase">Configurações MaestrIA</h2>
              
              <Section title="Branding da Empresa" icon={Building}>
                  <div className="flex flex-col md:flex-row gap-8 items-start">
@@ -74,31 +78,35 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onPromote, currentRole, 
                             </button>
                         </div>
                         <input type="file" ref={logoInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Logo da Empresa</p>
                     </div>
+                    
                     <div className="flex-1 space-y-6 w-full">
                         <div>
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">Nome Comercial</label>
                             <input 
                                 type="text" 
-                                value={localName}
-                                onChange={(e) => setLocalName(e.target.value)}
-                                onBlur={handleSync}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none" 
-                                placeholder="Ex: FinAI da Minha Empresa"
+                                ref={nameRef}
+                                defaultValue={companyInfo.name}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all" 
+                                placeholder="NOME DA EMPRESA"
                             />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">Descrição</label>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">Contexto para a MaestrIA</label>
                             <textarea 
-                                value={localDescription}
-                                onChange={(e) => setLocalDescription(e.target.value)}
-                                onBlur={handleSync}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none min-h-[100px]" 
-                                placeholder="Breve resumo para contextualizar a IA..."
+                                ref={descRef}
+                                defaultValue={companyInfo.description}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none min-h-[100px] transition-all" 
+                                placeholder="Descreva o foco da sua empresa..."
                             />
                         </div>
-                        <button onClick={handleSync} className="flex items-center gap-2 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl active:scale-95">
-                            <Save className="w-4 h-4"/> Salvar Branding
+                        <button 
+                            onClick={handleSaveBranding}
+                            className={`flex items-center justify-center gap-3 px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl active:scale-95 w-full md:w-auto ${isSaved ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white hover:bg-indigo-600'}`}
+                        >
+                            {isSaved ? <Check className="w-5 h-5"/> : <Save className="w-5 h-5"/>}
+                            {isSaved ? 'DADOS ATUALIZADOS' : 'SALVAR BRANDING'}
                         </button>
                     </div>
                  </div>
@@ -109,14 +117,17 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onPromote, currentRole, 
                    <div className="space-y-4">
                        <div className="divide-y divide-slate-50">
                            {team.map(member => (
-                               <div key={member.id} className="py-4 flex items-center justify-between group">
+                               <div key={member.id} className="py-5 flex items-center justify-between group">
                                    <div className="flex items-center gap-4">
-                                       <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center font-black italic text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all overflow-hidden">
+                                       <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center font-black italic text-slate-400 group-hover:bg-slate-950 group-hover:text-white transition-all overflow-hidden border border-slate-200">
                                            {member.avatar ? <img src={member.avatar} className="w-full h-full object-cover" /> : member.name.charAt(0)}
                                        </div>
                                        <div>
-                                           <p className="text-sm font-black text-slate-900">{member.name}</p>
-                                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{member.role}</span>
+                                           <p className="text-sm font-black text-slate-900">{member.name.toUpperCase()}</p>
+                                           <div className="flex items-center gap-2 mt-1">
+                                               <span className={`w-2 h-2 rounded-full ${member.status === 'online' ? 'bg-emerald-500' : 'bg-slate-300'}`}></span>
+                                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{member.role}</span>
+                                           </div>
                                        </div>
                                    </div>
                                </div>

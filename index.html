@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FinAI Enterprise - OS Financeiro</title>
+    <title>MaestrIA Enterprise - OS Financeiro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -14,12 +14,9 @@
       ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
       ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
       .glass-panel { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.5); }
-      
-      /* Garantir que o root ocupe a tela toda */
       #root { min-height: 100vh; }
     </style>
     
-    <!-- Shim para evitar erro de process is not defined no navegador -->
     <script>
       window.process = window.process || { env: { API_KEY: "" } };
     </script>
@@ -44,11 +41,10 @@
   </head>
   <body class="bg-slate-50 text-slate-900 antialiased overflow-hidden selection:bg-indigo-500 selection:text-white">
     <div id="root">
-      <!-- Indicador de carregamento inicial -->
       <div class="flex items-center justify-center h-screen bg-white">
         <div class="text-center">
           <div class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p class="text-xs font-black uppercase tracking-widest text-slate-400">Iniciando FinAI Enterprise...</p>
+          <p class="text-xs font-black uppercase tracking-widest text-slate-400">Iniciando MaestrIA...</p>
         </div>
       </div>
     </div>
