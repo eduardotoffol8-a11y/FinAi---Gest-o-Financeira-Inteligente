@@ -10,19 +10,25 @@ import Contacts from './components/Contacts';
 import Settings from './components/Settings';
 import AIChat from './components/AIChat';
 import Auth from './components/Auth';
+import Subscription from './components/Subscription';
 import MobileNav from './components/MobileNav';
 import CorporateChat from './components/CorporateChat';
 import { sendMessageToGemini } from './services/geminiService';
+import { translations } from './translations';
 
-const STORAGE_KEY = 'maestria_enterprise_v5_final';
+const STORAGE_KEY = 'maestria_enterprise_v7_saas';
 
 function App() {
   const [user, setUser] = useState<TeamMember | null>(() => {
     const saved = localStorage.getItem('maestria_auth');
-    try {
-      return saved ? JSON.parse(saved) : null;
-    } catch { return null; }
+    try { return saved ? JSON.parse(saved) : null; } catch { return null; }
   });
+
+  const [language, setLanguage] = useState<'pt-BR' | 'en-US' | 'es-ES'>(() => {
+    return (localStorage.getItem('maestria_lang') as any) || 'pt-BR';
+  });
+
+  const t = translations[language];
 
   const [companyInfo, setCompanyInfo] = useState(() => {
     const saved = localStorage.getItem('maestria_brand');
@@ -40,6 +46,7 @@ function App() {
   const [view, setView] = useState<ViewState>(ViewState.DASHBOARD);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showSubscription, setShowSubscription] = useState(false);
   const [sharingModal, setSharingModal] = useState<{ open: boolean; item: any; type: 'transaction' | 'contact' }>({ open: false, item: null, type: 'transaction' });
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -53,23 +60,38 @@ function App() {
   }, [companyInfo]);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setTransactions(parsed.transactions || []);
-        setContacts(parsed.contacts || []);
-        setSchedule(parsed.schedule || []);
-        setTeam(parsed.team || []);
-        setCorporateMessages(parsed.corporateMessages || []);
-      } catch (e) { console.error("Erro ao carregar dados:", e); }
-    }
-    
+    localStorage.setItem('maestria_lang', language);
+  }, [language]);
+
+  useEffect(() => {
+    const loadData = () => {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setTransactions(parsed.transactions || []);
+          setContacts(parsed.contacts || []);
+          setSchedule(parsed.schedule || []);
+          setTeam(parsed.team || []);
+          setCorporateMessages(parsed.corporateMessages || []);
+        } catch (e) { console.error("Erro ao carregar dados:", e); }
+      }
+    };
+
+    loadData();
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY) loadData();
+    };
+    window.addEventListener('storage', handleStorageChange);
+
     setTeam(prev => prev.length > 0 ? prev : [
-      { id: '1', name: 'CFO MaestrIA', role: 'admin', status: 'online', avatar: 'https://i.pravatar.cc/150?u=diretor' },
-      { id: '2', name: 'Gestor Financeiro', role: 'leader', status: 'online', avatar: 'https://i.pravatar.cc/150?u=comercial' },
+      { id: '1', name: 'CFO MaestrIA', role: 'admin', status: 'online', avatar: 'https://i.pravatar.cc/150?u=cfo' },
+      { id: '2', name: 'Gestor Financeiro', role: 'leader', status: 'online', avatar: 'https://i.pravatar.cc/150?u=gestor' },
       { id: '3', name: 'Analista de Auditoria', role: 'member', status: 'offline', avatar: 'https://i.pravatar.cc/150?u=analista' },
     ]);
+
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   useEffect(() => {
@@ -77,15 +99,28 @@ function App() {
       setIsSaving(true);
       const data = { transactions, contacts, schedule, team, corporateMessages };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      const timer = setTimeout(() => setIsSaving(false), 800);
+      const timer = setTimeout(() => setIsSaving(false), 500);
       return () => clearTimeout(timer);
     }
   }, [transactions, contacts, schedule, team, corporateMessages, user]);
 
   const handleLogin = (u: any) => {
+    if (u.isNew) {
+      setShowSubscription(true);
+      return;
+    }
     const finalUser: TeamMember = { id: Date.now().toString(), name: u.name, role: u.role, status: 'online' };
     setUser(finalUser);
     localStorage.setItem('maestria_auth', JSON.stringify(finalUser));
+    setTeam(prev => prev.some(m => m.name === finalUser.name) ? prev : [...prev, finalUser]);
+  };
+
+  const completeSubscription = () => {
+    setShowSubscription(false);
+    const finalUser: TeamMember = { id: Date.now().toString(), name: 'Novo Gestor', role: 'admin', status: 'online' };
+    setUser(finalUser);
+    localStorage.setItem('maestria_auth', JSON.stringify(finalUser));
+    setTeam(prev => [...prev, finalUser]);
   };
 
   const handleLogout = () => {
@@ -93,27 +128,21 @@ function App() {
     localStorage.removeItem('maestria_auth');
   };
 
-  const simulateTeamResponse = async (text: string, receiverId: string) => {
-    const responder = team.find(m => m.id !== user?.id) || team[0];
-    setTimeout(async () => {
-        const prompt = `Você é ${responder.name}, membro da equipe financeira MaestrIA. Um colega enviou: "${text}". Responda de forma profissional e curta, como se estivesse em um chat corporativo.`;
-        const response = await sendMessageToGemini(prompt);
-        const aiMessage: CorporateMessage = {
-            id: Date.now().toString(),
-            senderId: responder.id,
-            receiverId: receiverId === 'all' ? 'all' : user!.id,
-            text: response,
-            timestamp: new Date()
-        };
-        setCorporateMessages(prev => [...prev, aiMessage]);
-    }, 2000);
-  };
-
   const handleSendCorporateMessage = (receiverId: string, text: string, options?: Partial<CorporateMessage>) => {
     if (!user) return;
-    const msg: CorporateMessage = { id: Date.now().toString(), senderId: user.id, receiverId, text, timestamp: new Date(), ...options };
+    const msg: CorporateMessage = { 
+      id: Date.now().toString(), 
+      senderId: user.id, 
+      receiverId, 
+      text, 
+      timestamp: new Date(), 
+      ...options 
+    };
     setCorporateMessages(prev => [...prev, msg]);
-    if (text.length > 3) simulateTeamResponse(text, receiverId);
+  };
+
+  const handleUpdateTeamMember = (updatedMember: TeamMember) => {
+    setTeam(prev => prev.map(m => m.id === updatedMember.id ? updatedMember : m));
   };
 
   const NavItem = ({ icon: Icon, label, active, onClick }: any) => (
@@ -129,6 +158,7 @@ function App() {
     </button>
   );
 
+  if (showSubscription) return <Subscription onConfirm={completeSubscription} onCancel={() => setShowSubscription(false)} />;
   if (!user) return <Auth onLogin={handleLogin} />;
 
   return (
@@ -140,23 +170,23 @@ function App() {
           </div>
           <div>
               <h1 className="font-black text-xl text-slate-900 tracking-tighter uppercase italic truncate max-w-[160px]">{companyInfo.name}</h1>
-              <p className="text-[10px] text-indigo-500 font-black uppercase tracking-[0.3em] mt-1">Enterprise OS</p>
+              <p className="text-[10px] text-indigo-500 font-black uppercase tracking-[0.3em] mt-1">MaestrIA OS</p>
           </div>
         </div>
 
         <nav className="space-y-2 flex-1">
-          <NavItem icon={LayoutDashboard} label="Painel" active={view === ViewState.DASHBOARD} onClick={() => setView(ViewState.DASHBOARD)} />
-          <NavItem icon={FileText} label="Lançamentos" active={view === ViewState.TRANSACTIONS} onClick={() => setView(ViewState.TRANSACTIONS)} />
-          <NavItem icon={PieChart} label="Inteligência IA" active={view === ViewState.REPORTS} onClick={() => setView(ViewState.REPORTS)} />
-          <NavItem icon={MessageSquare} label="Chat Equipe" active={view === ViewState.TEAM_CHAT} onClick={() => setView(ViewState.TEAM_CHAT)} />
-          <NavItem icon={CalendarIcon} label="Agenda Sync" active={view === ViewState.SCHEDULE} onClick={() => setView(ViewState.SCHEDULE)} />
-          <NavItem icon={Users} label="Parceiros" active={view === ViewState.CONTACTS} onClick={() => setView(ViewState.CONTACTS)} />
+          <NavItem icon={LayoutDashboard} label={t.dashboard} active={view === ViewState.DASHBOARD} onClick={() => setView(ViewState.DASHBOARD)} />
+          <NavItem icon={FileText} label={t.transactions} active={view === ViewState.TRANSACTIONS} onClick={() => setView(ViewState.TRANSACTIONS)} />
+          <NavItem icon={PieChart} label={t.ia} active={view === ViewState.REPORTS} onClick={() => setView(ViewState.REPORTS)} />
+          <NavItem icon={MessageSquare} label={t.chat} active={view === ViewState.TEAM_CHAT} onClick={() => setView(ViewState.TEAM_CHAT)} />
+          <NavItem icon={CalendarIcon} label={t.agenda} active={view === ViewState.SCHEDULE} onClick={() => setView(ViewState.SCHEDULE)} />
+          <NavItem icon={Users} label={t.partners} active={view === ViewState.CONTACTS} onClick={() => setView(ViewState.CONTACTS)} />
         </nav>
 
         <div className="pt-8 border-t border-slate-100 space-y-3">
-            <NavItem icon={SettingsIcon} label="Configurações" active={view === ViewState.SETTINGS} onClick={() => setView(ViewState.SETTINGS)} />
+            <NavItem icon={SettingsIcon} label={t.settings} active={view === ViewState.SETTINGS} onClick={() => setView(ViewState.SETTINGS)} />
             <button onClick={handleLogout} className="w-full flex items-center gap-4 px-6 py-5 rounded-[1.5rem] text-[10px] font-black text-slate-400 hover:text-rose-600 transition-all uppercase tracking-widest">
-                <LogOut className="w-5 h-5"/> Sair
+                <LogOut className="w-5 h-5"/> {t.logout}
             </button>
         </div>
       </aside>
@@ -166,7 +196,7 @@ function App() {
           <div className="flex items-center gap-6">
               <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase italic">{view}</h2>
               <div className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black tracking-widest ${isSaving ? 'text-indigo-500 bg-indigo-50' : 'text-emerald-600 bg-emerald-50'}`}>
-                {isSaving ? <Loader2 className="w-3 h-3 animate-spin"/> : <CheckCircle2 className="w-3 h-3"/>} {isSaving ? 'SINC...' : 'SISTEMA SEGURO'}
+                {isSaving ? <Loader2 className="w-3 h-3 animate-spin"/> : <CheckCircle2 className="w-3 h-3"/>} {isSaving ? 'SYNC' : t.secure_system}
               </div>
           </div>
           
@@ -182,13 +212,34 @@ function App() {
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-12 pb-40 lg:pb-12 bg-slate-50/50">
             <div className="max-w-[1400px] mx-auto h-full">
-                {view === ViewState.DASHBOARD && <Dashboard transactions={transactions} onViewChange={setView} />}
-                {view === ViewState.TRANSACTIONS && <TransactionList transactions={transactions} onEditTransaction={(t) => setTransactions(prev => prev.map(o => o.id === t.id ? t : o))} onDeleteTransaction={(id) => setTransactions(prev => prev.filter(t => t.id !== id))} onImportTransactions={(l) => setTransactions(prev => [...l, ...prev])} onShareToChat={(i) => { setSharingModal({ open: true, item: i, type: 'transaction' }); }} />}
-                {view === ViewState.REPORTS && <Reports transactions={transactions} />}
-                {view === ViewState.TEAM_CHAT && <CorporateChat currentUser={user} team={team} messages={corporateMessages} onSendMessage={handleSendCorporateMessage} onEditMessage={(id, t) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, text: t, isEdited: true} : m))} onDeleteMessage={(id) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, isDeleted: true} : m))} />}
-                {view === ViewState.SCHEDULE && <Schedule items={schedule} setItems={setSchedule} onAddTransaction={(t) => setTransactions(prev => [{...t, id: Date.now().toString()}, ...prev])} />}
-                {view === ViewState.CONTACTS && <Contacts contacts={contacts} onAddContact={(c) => setContacts(p => [c, ...p])} onEditContact={(c) => setContacts(p => p.map(o => o.id === c.id ? c : o))} onDeleteContact={(id) => setContacts(p => p.filter(c => c.id !== id))} onImportContacts={(l) => setContacts(p => [...l, ...p])} onShareToChat={(i) => { setSharingModal({ open: true, item: i, type: 'contact' }); }} />}
-                {view === ViewState.SETTINGS && <Settings team={team} companyInfo={companyInfo} setCompanyInfo={setCompanyInfo} currentRole={user.role} />}
+                {view === ViewState.DASHBOARD && <Dashboard transactions={transactions} onViewChange={setView} language={language} />}
+                {view === ViewState.TRANSACTIONS && <TransactionList transactions={transactions} onEditTransaction={(t) => setTransactions(prev => prev.map(o => o.id === t.id ? t : o))} onDeleteTransaction={(id) => setTransactions(prev => prev.filter(t => t.id !== id))} onImportTransactions={(l) => setTransactions(prev => [...l, ...prev])} onShareToChat={(i) => { setSharingModal({ open: true, item: i, type: 'transaction' }); }} language={language} />}
+                {view === ViewState.REPORTS && <Reports transactions={transactions} language={language} />}
+                {view === ViewState.TEAM_CHAT && (
+                  <CorporateChat 
+                    currentUser={user} 
+                    team={team} 
+                    messages={corporateMessages} 
+                    onSendMessage={handleSendCorporateMessage} 
+                    onEditMessage={(id, t) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, text: t, isEdited: true} : m))} 
+                    onDeleteMessage={(id) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, isDeleted: true} : m))}
+                    onSwitchIdentity={(u) => setUser(u)}
+                    language={language}
+                  />
+                )}
+                {view === ViewState.SCHEDULE && <Schedule items={schedule} setItems={setSchedule} onAddTransaction={(t) => setTransactions(prev => [{...t, id: Date.now().toString()}, ...prev])} language={language} />}
+                {view === ViewState.CONTACTS && <Contacts contacts={contacts} onAddContact={(c) => setContacts(p => [c, ...p])} onEditContact={(c) => setContacts(p => p.map(o => o.id === c.id ? c : o))} onDeleteContact={(id) => setContacts(p => p.filter(c => c.id !== id))} onImportContacts={(l) => setContacts(p => [...l, ...p])} onShareToChat={(i) => { setSharingModal({ open: true, item: i, type: 'contact' }); }} language={language} />}
+                {view === ViewState.SETTINGS && (
+                  <Settings 
+                    team={team} 
+                    companyInfo={companyInfo} 
+                    setCompanyInfo={setCompanyInfo} 
+                    currentRole={user.role}
+                    onUpdateMember={handleUpdateTeamMember}
+                    language={language}
+                    setLanguage={setLanguage as any}
+                  />
+                )}
             </div>
         </div>
         
@@ -209,7 +260,7 @@ function App() {
                    <button 
                       key={member.id} 
                       onClick={() => {
-                        handleSendCorporateMessage(member.id, `Discussão sobre ${sharingModal.type}`, { sharedItem: { type: sharingModal.type, data: sharingModal.item } });
+                        handleSendCorporateMessage(member.id, `Compartilhando ${sharingModal.type}`, { sharedItem: { type: sharingModal.type, data: sharingModal.item } });
                         setSharingModal({ open: false, item: null, type: 'transaction' });
                         setView(ViewState.TEAM_CHAT);
                       }}
@@ -218,8 +269,8 @@ function App() {
                       <div className="flex items-center gap-3">
                          <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black italic">{member.name.charAt(0)}</div>
                          <div className="text-left">
-                            <p className="font-bold text-sm text-slate-900">{member.name}</p>
-                            <span className="text-[10px] font-black uppercase text-indigo-500">{member.role}</span>
+                            <p className="font-bold text-sm text-slate-900 uppercase">{member.name}</p>
+                            <span className="text-[10px] font-black uppercase text-indigo-500 tracking-widest">{member.role}</span>
                          </div>
                       </div>
                       <Share2 className="w-4 h-4 text-slate-300" />

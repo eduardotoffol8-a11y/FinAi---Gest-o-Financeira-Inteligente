@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, FileText, PieChart, Calendar, MessageSquare, Users, Settings } from 'lucide-react';
+import { LayoutDashboard, FileText, PieChart, Calendar, MessageSquare, Settings } from 'lucide-react';
 import { ViewState } from '../types';
 
 interface MobileNavProps {
@@ -10,17 +10,17 @@ interface MobileNavProps {
 
 const MobileNav: React.FC<MobileNavProps> = ({ currentView, onViewChange }) => {
   const items = [
-    { id: ViewState.DASHBOARD, icon: LayoutDashboard, label: 'Geral' },
+    { id: ViewState.DASHBOARD, icon: LayoutDashboard, label: 'Painel' },
     { id: ViewState.TRANSACTIONS, icon: FileText, label: 'Razão' },
     { id: ViewState.REPORTS, icon: PieChart, label: 'IA' },
     { id: ViewState.TEAM_CHAT, icon: MessageSquare, label: 'Chat' },
     { id: ViewState.SCHEDULE, icon: Calendar, label: 'Agenda' },
-    { id: ViewState.SETTINGS, icon: Settings, label: 'Config' },
+    { id: ViewState.SETTINGS, icon: Settings, label: 'Ajustes' },
   ];
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-200 px-2 pb-safe-area pt-2 z-[150] shadow-[0_-8px_30px_rgb(0,0,0,0.04)]">
-      <div className="flex justify-around items-center max-w-full mx-auto">
+    <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[92%] max-w-md">
+      <nav className="bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-2 flex justify-around items-center shadow-2xl shadow-indigo-500/20">
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = currentView === item.id;
@@ -28,17 +28,22 @@ const MobileNav: React.FC<MobileNavProps> = ({ currentView, onViewChange }) => {
             <button
               key={item.id}
               onClick={() => onViewChange(item.id)}
-              className={`flex flex-col items-center gap-1 p-2 transition-all ${isActive ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}
+              className={`flex flex-col items-center gap-1 p-3 transition-all duration-300 relative ${isActive ? 'text-white' : 'text-slate-500'}`}
             >
-              <div className={`p-1.5 rounded-xl transition-all ${isActive ? 'bg-indigo-50 shadow-inner' : ''}`}>
-                <Icon className="w-5 h-5" />
+              <div className={`transition-all duration-500 ${isActive ? 'scale-110 -translate-y-1' : 'scale-100'}`}>
+                <Icon className={`w-5 h-5 ${isActive ? 'text-indigo-400' : ''}`} />
               </div>
-              <span className="text-[9px] font-black uppercase tracking-tighter">{item.label}</span>
+              <span className={`text-[8px] font-black uppercase tracking-tighter transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-0 h-0'}`}>
+                {item.label}
+              </span>
+              {isActive && (
+                <div className="absolute -bottom-1 w-1 h-1 bg-indigo-400 rounded-full"></div>
+              )}
             </button>
           );
         })}
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 };
 

@@ -2,12 +2,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { Transaction } from "../types";
 
-let ai: any = null;
-try {
-  ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-} catch (e) {
-  console.error("MaestrIA: Falha ao inicializar motor neural.", e);
-}
+// Always initialize GoogleGenAI with the apiKey from environment variables
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const SYSTEM_INSTRUCTION = `
 Você é o MaestrIA, um CFO Virtual e Auditor Sênior de nível Big Four.
@@ -25,19 +21,21 @@ export const sendMessageToGemini = async (
   message: string,
   history: { role: string; parts: { text: string }[] }[] = []
 ): Promise<string> => {
-  if (!ai) return "Motor MaestrIA Offline.";
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [...history, { role: 'user', parts: [{ text: message }] }],
       config: { systemInstruction: SYSTEM_INSTRUCTION }
     });
+    // Access .text property directly as per @google/genai guidelines
     return response.text || "Sem resposta do núcleo neural.";
-  } catch (error) { return "Interferência no processamento neural."; }
+  } catch (error) { 
+    console.error("MaestrIA error:", error);
+    return "Interferência no processamento neural."; 
+  }
 };
 
 export const generateExecutiveReport = async (transactions: Transaction[], period: string): Promise<string> => {
-  if (!ai) return "Relatório indisponível.";
   const summary = transactions.map(t => `- ${t.date}: ${t.description} (R$ ${t.amount}) [${t.category}]`).join('\n');
   const prompt = `Gere um Relatório Executivo de Desempenho para o período ${period}.
   Dados:
@@ -49,16 +47,20 @@ export const generateExecutiveReport = async (transactions: Transaction[], perio
   - Sugestões de otimização fiscal.
   - Formato profissional para diretoria.`;
   
-  const response = await ai.models.generateContent({
-    model: "gemini-3-pro-preview",
-    contents: { parts: [{ text: prompt }] },
-    config: { systemInstruction: SYSTEM_INSTRUCTION }
-  });
-  return response.text || "";
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-pro-preview",
+      contents: { parts: [{ text: prompt }] },
+      config: { systemInstruction: SYSTEM_INSTRUCTION }
+    });
+    return response.text || "";
+  } catch (error) {
+    console.error("MaestrIA Report error:", error);
+    return "";
+  }
 };
 
 export const performAudit = async (transactions: Transaction[]): Promise<string> => {
-  if (!ai) return "Auditoria indisponível.";
   const summary = transactions.map(t => `- ${t.date}: ${t.description} (R$ ${t.amount}) [${t.category}]`).join('\n');
   const prompt = `Realize uma Auditoria Contábil e de Risco nas seguintes transações:
   ${summary}
@@ -69,30 +71,38 @@ export const performAudit = async (transactions: Transaction[]): Promise<string>
   - Avaliar riscos de fluxo de caixa futuro.
   - Concluir com um parecer de auditor sênior.`;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: { parts: [{ text: prompt }] },
-    config: { systemInstruction: SYSTEM_INSTRUCTION }
-  });
-  return response.text || "";
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: { parts: [{ text: prompt }] },
+      config: { systemInstruction: SYSTEM_INSTRUCTION }
+    });
+    return response.text || "";
+  } catch (error) {
+    console.error("MaestrIA Audit error:", error);
+    return "";
+  }
 };
 
 export const getStrategicSuggestions = async (transactions: Transaction[]): Promise<string> => {
-  if (!ai) return "Insights indisponíveis.";
   const summary = transactions.slice(0, 30).map(t => `- ${t.description}: R$ ${t.amount}`).join('\n');
   const prompt = `Como consultor estratégico MaestrIA, analise estes dados e forneça 3 planos de ação para aumentar a lucratividade imediata:
   ${summary}`;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: { parts: [{ text: prompt }] },
-    config: { systemInstruction: SYSTEM_INSTRUCTION }
-  });
-  return response.text || "";
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: { parts: [{ text: prompt }] },
+      config: { systemInstruction: SYSTEM_INSTRUCTION }
+    });
+    return response.text || "";
+  } catch (error) {
+    console.error("MaestrIA Strategic error:", error);
+    return "";
+  }
 };
 
 export const analyzeReceipt = async (base64Data: string, mimeType: string): Promise<string> => {
-    if (!ai) return "{}";
     try {
         const response = await ai.models.generateContent({
             model: "gemini-3-flash-preview",
@@ -104,7 +114,11 @@ export const analyzeReceipt = async (base64Data: string, mimeType: string): Prom
             }
         });
         let text = response.text || "{}";
+        // Clean JSON markdown blocks if the model returned any
         text = text.replace(/```json/g, '').replace(/```/g, '').trim();
         return text;
-    } catch (e) { return "{}"; }
+    } catch (e) { 
+        console.error("MaestrIA Vision error:", e);
+        return "{}"; 
+    }
 }
