@@ -51,21 +51,24 @@ function App() {
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
+    let parsedData: any = null;
+    
     if (saved) {
       try {
-        const data = JSON.parse(saved);
-        setTransactions(data.transactions || []);
-        setContacts(data.contacts || []);
-        setSchedule(data.schedule || []);
-        setTeam(data.team || []);
-        setCorporateMessages(data.corporateMessages || []);
+        parsedData = JSON.parse(saved);
+        setTransactions(parsedData.transactions || []);
+        setContacts(parsedData.contacts || []);
+        setSchedule(parsedData.schedule || []);
+        setTeam(parsedData.team || []);
+        setCorporateMessages(parsedData.corporateMessages || []);
       } catch (e) {
         console.error("Erro ao carregar dados locais:", e);
       }
     }
     
-    // Inicialização da equipe caso esteja vazia
-    if (!saved || (JSON.parse(saved).team?.length === 0)) {
+    // Inicialização da equipe caso esteja vazia ou parse falhou
+    const hasTeam = parsedData?.team && parsedData.team.length > 0;
+    if (!hasTeam) {
       setTeam([
         { id: '1', name: 'Admin FinAI', role: 'admin', status: 'online', avatar: 'https://i.pravatar.cc/150?u=admin' },
         { id: '2', name: 'Gestor Comercial', role: 'leader', status: 'online', avatar: 'https://i.pravatar.cc/150?u=leader' },
