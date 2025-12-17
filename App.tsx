@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, Menu, FileText, Calendar as CalendarIcon, LogOut, UploadCloud, Plus, X, Loader2, CheckCircle2, Command, MessageSquare, Share2 } from 'lucide-react';
+import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, Menu, FileText, Calendar as CalendarIcon, LogOut, UploadCloud, Plus, X, Loader2, CheckCircle2, Command, MessageSquare, Share2, Cloud } from 'lucide-react';
 import { Transaction, ViewState, Contact, ScheduledItem, TeamMember, CorporateMessage } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionList from './components/TransactionList';
@@ -41,7 +41,6 @@ function App() {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [corporateMessages, setCorporateMessages] = useState<CorporateMessage[]>([]);
 
-  // Estabilizar o setter do branding para evitar perda de foco
   const updateCompanyInfo = useCallback((info: any) => {
     setCompanyInfo(info);
   }, []);
@@ -57,23 +56,15 @@ function App() {
       setTransactions(data.transactions || []);
       setContacts(data.contacts || []);
       setSchedule(data.schedule || []);
-      setTeam(data.team || [
-        { id: '1', name: 'Admin FinAI', role: 'admin', status: 'online', avatar: 'https://i.pravatar.cc/150?u=admin' },
-        { id: '2', name: 'Gestor Comercial', role: 'leader', status: 'online', avatar: 'https://i.pravatar.cc/150?u=leader' },
-        { id: '3', name: 'Analista Financeiro', role: 'member', status: 'offline', avatar: 'https://i.pravatar.cc/150?u=member' },
-      ]);
+      setTeam(data.team || []);
       setCorporateMessages(data.corporateMessages || []);
-    } else {
+    }
+    
+    if (!saved || (JSON.parse(saved).team?.length === 0)) {
       setTeam([
         { id: '1', name: 'Admin FinAI', role: 'admin', status: 'online', avatar: 'https://i.pravatar.cc/150?u=admin' },
         { id: '2', name: 'Gestor Comercial', role: 'leader', status: 'online', avatar: 'https://i.pravatar.cc/150?u=leader' },
         { id: '3', name: 'Analista Financeiro', role: 'member', status: 'offline', avatar: 'https://i.pravatar.cc/150?u=member' },
-      ]);
-      setTransactions([
-        { id: '1', date: '2023-10-25', description: 'Licença Enterprise SaaS', category: 'Vendas', amount: 14500.00, type: 'income', status: 'paid', supplier: 'Tech Corp Global' },
-      ]);
-      setSchedule([
-        { id: 's1', dueDate: '2023-12-30', description: 'Aluguel Matriz', amount: 8000.00, type: 'expense', recurrence: 'monthly', autoPay: false, status: 'pending' }
       ]);
     }
   }, []);
@@ -82,7 +73,7 @@ function App() {
     if (user) {
       setIsSaving(true);
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ transactions, contacts, schedule, team, corporateMessages }));
-      const timer = setTimeout(() => setIsSaving(false), 800);
+      const timer = setTimeout(() => setIsSaving(false), 1200);
       return () => clearTimeout(timer);
     }
   }, [transactions, contacts, schedule, team, corporateMessages, user]);
