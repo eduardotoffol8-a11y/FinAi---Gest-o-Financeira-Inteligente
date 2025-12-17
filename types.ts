@@ -90,7 +90,7 @@ export interface ChatMessage {
     base64: string;
   }[];
   isDraft?: boolean;
-  draftData?: Partial<Transaction>;
+  draftData?: Omit<Transaction, 'id'>;
 }
 
 export enum ViewState {

@@ -17,7 +17,6 @@ import { translations } from './translations';
 
 const STORAGE_KEY = 'maestria_v11_enterprise_stable';
 
-// Dados de referência solicitados pelo usuário
 const INITIAL_TRANSACTIONS: Transaction[] = [
   { id: 'L001', date: '2025-01-05', description: 'Recebimento de cliente Ana Souza', type: 'income', amount: 2500.00, category: 'Vendas', status: 'paid', supplier: 'Ana Souza' },
   { id: 'L002', date: '2025-01-06', description: 'Pagamento fornecedor SupplyMax', type: 'expense', amount: 1200.00, category: 'Compras', status: 'paid', supplier: 'Ricardo Almeida' },
@@ -47,6 +46,7 @@ const INITIAL_CONTACTS: Contact[] = [
 function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [user, setUser] = useState<TeamMember | null>(null);
+  const [initialChatPrompt, setInitialChatPrompt] = useState<string | null>(null);
 
   const [language, setLanguage] = useState<'pt-BR' | 'en-US' | 'es-ES'>(() => {
     return (localStorage.getItem('maestria_lang') as any) || 'pt-BR';
@@ -169,8 +169,8 @@ function App() {
 
       <aside className="hidden lg:flex w-80 bg-white border-r border-slate-100 flex-col p-8 z-20 shadow-sm">
         <div className="flex items-center gap-4 px-2 mb-12">
-          <div className="w-12 h-12 bg-slate-950 rounded-[1.25rem] flex items-center justify-center text-white shadow-2xl overflow-hidden">
-             {companyInfo.logo ? <img src={companyInfo.logo} className="w-full h-full object-cover" /> : <Command className="w-7 h-7"/>}
+          <div className="w-12 h-12 bg-slate-950 rounded-[1.25rem] flex items-center justify-center text-white shadow-2xl overflow-hidden ring-2 ring-slate-100 ring-offset-2">
+             {companyInfo.logo ? <img src={companyInfo.logo} className="w-full h-full object-cover" alt="Logo" /> : <Command className="w-7 h-7"/>}
           </div>
           <div>
             <h1 className="font-black text-xl text-slate-900 tracking-tighter uppercase italic truncate max-w-[160px]">{companyInfo.name}</h1>
@@ -202,6 +202,11 @@ function App() {
               </div>
           </div>
           <div className="flex items-center gap-6">
+             {companyInfo.logo && (
+               <div className="hidden lg:block w-10 h-10 rounded-xl overflow-hidden border border-slate-100 shadow-sm">
+                  <img src={companyInfo.logo} className="w-full h-full object-cover" alt="Branding" />
+               </div>
+             )}
              <div className="hidden xl:flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl">
                  <Clock className="w-4 h-4 text-slate-400" />
                  <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">{trialDaysRemaining} Dias Disponíveis</span>
@@ -215,7 +220,14 @@ function App() {
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-12 pb-40 lg:pb-12 bg-slate-50/50">
             <div className="max-w-[1400px] mx-auto h-full">
-                {view === ViewState.DASHBOARD && <Dashboard transactions={transactions} language={language} />}
+                {view === ViewState.DASHBOARD && (
+                  <Dashboard 
+                    transactions={transactions} 
+                    language={language} 
+                    onViewChange={setView}
+                    onOpenChatWithPrompt={(p) => { setInitialChatPrompt(p); setIsChatOpen(true); }}
+                  />
+                )}
                 {view === ViewState.TRANSACTIONS && <TransactionList transactions={transactions} onEditTransaction={(t) => setTransactions(prev => prev.map(o => o.id === t.id ? t : o))} onDeleteTransaction={(id) => setTransactions(prev => prev.filter(t => t.id !== id))} onImportTransactions={(l) => setTransactions(prev => [...l, ...prev])} language={language} />}
                 {view === ViewState.REPORTS && <Reports transactions={transactions} language={language} />}
                 {view === ViewState.TEAM_CHAT && <CorporateChat currentUser={user} team={team} messages={corporateMessages} onSendMessage={(rid, txt, opt) => setCorporateMessages(prev => [...prev, {id: Date.now().toString(), senderId: user.id, receiverId: rid, text: txt, timestamp: new Date(), ...opt}])} onEditMessage={(id, t) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, text: t} : m))} onDeleteMessage={(id) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, isDeleted: true} : m))} language={language} />}
@@ -226,7 +238,7 @@ function App() {
         </div>
         <MobileNav currentView={view} onViewChange={setView} />
       </main>
-      <AIChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} onAddTransaction={(t) => setTransactions(prev => [{...t, id: Date.now().toString()}, ...prev])} />
+      <AIChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} onAddTransaction={(t) => setTransactions(prev => [{...t, id: Date.now().toString()}, ...prev])} initialPrompt={initialChatPrompt} />
     </div>
   );
 }

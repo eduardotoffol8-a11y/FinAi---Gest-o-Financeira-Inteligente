@@ -1,7 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, X, Loader2, Check, FileText, Brain } from 'lucide-react';
-// Import analyzeDocument instead of the non-existent analyzeReceipt
 import { sendMessageToGemini, analyzeDocument } from '../services/geminiService';
 import { ChatMessage, Transaction } from '../types';
 
@@ -53,17 +52,29 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
 
     try {
       if (currentImage) {
-         // Using analyzeDocument with the required 'transaction' type parameter
          const jsonStr = await analyzeDocument(currentImage.base64.split(',')[1], currentImage.type, 'transaction');
          const data = JSON.parse(jsonStr);
          if (data.amount) {
+            const draft: Omit<Transaction, 'id'> = {
+                date: data.date || new Date().toISOString().split('T')[0],
+                description: data.description || 'Scan IA',
+                category: data.category || 'Operacional',
+                amount: Number(data.amount) || 0,
+                type: data.type === 'income' ? 'income' : 'expense',
+                status: 'pending',
+                source: 'ai',
+                supplier: data.supplier || '',
+                paymentMethod: data.paymentMethod || '',
+                costCenter: data.costCenter || ''
+            };
+
             setMessages(prev => [...prev, {
                 id: Date.now().toString(),
                 role: 'model',
                 text: 'Análise concluída via Visão Neural. Deseja efetivar este lançamento?',
                 timestamp: new Date(),
                 isDraft: true,
-                draftData: { ...data, status: 'pending', source: 'ai' }
+                draftData: draft
             }]);
             setIsLoading(false);
             return;
@@ -115,7 +126,12 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
                               <span className="text-slate-900">R$ {msg.draftData.amount}</span>
                           </div>
                       </div>
-                      <button onClick={() => { onAddTransaction(msg.draftData!); setMessages(p => p.map(m => m.id === msg.id ? {...m, isDraft: false, text: 'Confirmado!'} : m)); }} className="w-full bg-indigo-600 text-white text-xs font-black py-4 rounded-xl shadow-lg">EFETIVAR LANÇAMENTO</button>
+                      <button onClick={() => { 
+                        if (msg.draftData) {
+                          onAddTransaction(msg.draftData); 
+                          setMessages(p => p.map(m => m.id === msg.id ? {...m, isDraft: false, text: 'Lançamento efetivado com sucesso!'} : m));
+                        }
+                      }} className="w-full bg-indigo-600 text-white text-xs font-black py-4 rounded-xl shadow-lg hover:bg-indigo-700 transition-colors">EFETIVAR LANÇAMENTO</button>
                   </div>
               )}
             </div>

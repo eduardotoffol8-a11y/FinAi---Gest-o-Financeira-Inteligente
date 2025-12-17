@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { Wallet, TrendingDown, Zap, Bell, Sparkles, ArrowRight, Clock } from 'lucide-react';
+import { Wallet, TrendingDown, Zap, Bell, Sparkles, ArrowRight, Clock, Target, ShieldCheck } from 'lucide-react';
 import { Transaction, ViewState } from '../types';
 import { translations } from '../translations';
 
@@ -18,10 +18,10 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const netIncome = totalIncome - totalExpense;
 
-  const StatCard = ({ title, value, trend, icon: Icon, colorClass, trendValue }: any) => (
-    <button onClick={() => onViewChange?.(ViewState.TRANSACTIONS)} className="w-full text-left bg-white p-6 rounded-3xl border border-slate-100 transition-all hover:-translate-y-1 hover:shadow-xl group">
+  const StatCard = ({ title, value, trend, icon: Icon, colorClass, trendValue, viewTarget }: any) => (
+    <button onClick={() => onViewChange?.(viewTarget || ViewState.TRANSACTIONS)} className="w-full text-left bg-white p-6 rounded-3xl border border-slate-100 transition-all hover:-translate-y-1 hover:shadow-xl group">
       <div className="flex justify-between items-start mb-4">
-          <div className={`p-3 rounded-2xl ${colorClass} bg-opacity-10 text-slate-900`}>
+          <div className={`p-3 rounded-2xl ${colorClass} bg-opacity-10 text-slate-900 group-hover:bg-opacity-20 transition-all`}>
               <Icon className="w-6 h-6" />
           </div>
           <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${trend === 'up' ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'}`}>{trendValue}</span>
@@ -40,8 +40,8 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-          <h3 className="text-xl font-black text-slate-900 italic tracking-tight mb-8">Fluxo Neural</h3>
+        <button onClick={() => onViewChange?.(ViewState.REPORTS)} className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm text-left hover:ring-2 hover:ring-brand/10 transition-all group">
+          <h3 className="text-xl font-black text-slate-900 italic tracking-tight mb-8 group-hover:text-brand">Fluxo Neural <span className="text-[10px] font-black uppercase text-slate-300 ml-2">(Ver Inteligência)</span></h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={[{name: 'D-3', v: 400}, {name: 'D-2', v: 300}, {name: 'D-1', v: 600}, {name: 'Hoje', v: 800}]}>
@@ -53,22 +53,30 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-slate-950 text-white p-8 rounded-[2.5rem] flex flex-col shadow-2xl">
-          <h3 className="text-lg font-black tracking-tight mb-6 flex items-center gap-2">
+        <div className="bg-slate-950 text-white p-8 rounded-[2.5rem] flex flex-col shadow-2xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
+          <h3 className="text-lg font-black tracking-tight mb-6 flex items-center gap-2 relative z-10">
               <Bell className="w-5 h-5 text-indigo-400" /> COMANDO MAESTRIA
           </h3>
-          <div className="space-y-4 flex-1">
-              <div className="w-full text-left bg-white/5 border border-white/10 p-4 rounded-2xl">
+          <div className="space-y-4 flex-1 relative z-10">
+              <button onClick={() => onViewChange?.(ViewState.SCHEDULE)} className="w-full text-left bg-white/5 border border-white/10 p-4 rounded-2xl hover:bg-white/10 transition-colors">
                   <div className="flex items-center gap-2 mb-1">
                       <Clock className="w-4 h-4 text-amber-400" />
-                      <span className="text-[10px] font-black uppercase text-slate-400">Status</span>
+                      <span className="text-[10px] font-black uppercase text-slate-400">Próximos Vencimentos</span>
                   </div>
                   <p className="text-sm font-bold">Vencimentos monitorados pela IA.</p>
-              </div>
+              </button>
+              <button onClick={() => onOpenChatWithPrompt?.("Faça uma auditoria rápida no meu caixa de hoje.")} className="w-full text-left bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-2xl hover:bg-indigo-500/20 transition-colors">
+                  <div className="flex items-center gap-2 mb-1">
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      <span className="text-[10px] font-black uppercase text-slate-400">Auditoria Real-time</span>
+                  </div>
+                  <p className="text-sm font-bold">Solicitar auditoria neural agora.</p>
+              </button>
           </div>
-          <button onClick={() => onViewChange?.(ViewState.REPORTS)} className="mt-8 flex items-center justify-between bg-white text-slate-900 p-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-50 transition">
+          <button onClick={() => onViewChange?.(ViewState.REPORTS)} className="mt-8 flex items-center justify-between bg-white text-slate-900 p-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition shadow-xl relative z-10">
               {t.ia} <ArrowRight className="w-4 h-4" />
           </button>
         </div>
