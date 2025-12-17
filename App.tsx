@@ -45,7 +45,9 @@ function App() {
   });
 
   const [view, setView] = useState<ViewState>(() => {
-    return (localStorage.getItem('maestria_last_view') as ViewState) || ViewState.DASHBOARD;
+    const last = localStorage.getItem('maestria_last_view');
+    if (last && Object.values(ViewState).includes(last as any)) return last as ViewState;
+    return ViewState.DASHBOARD;
   });
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -74,6 +76,8 @@ function App() {
         setCorporateMessages(parsed.corporateMessages || []);
         setCategories(parsed.categories || DEFAULT_CATEGORIES);
       } catch (e) { console.error("Data Load Error"); }
+    } else {
+        setCategories(DEFAULT_CATEGORIES);
     }
     
     setIsLoaded(true);
@@ -115,7 +119,9 @@ function App() {
     </div>
   );
 
-  if (view === ViewState.LANDING) return <Subscription onConfirm={() => setView(ViewState.DASHBOARD)} onCancel={() => setView(ViewState.DASHBOARD)} />;
+  // Cast para evitar erro de build TS2367 em versões estritas de TS
+  const currentView = view as ViewState;
+  if (currentView === ViewState.LANDING) return <Subscription onConfirm={() => setView(ViewState.DASHBOARD)} onCancel={() => setView(ViewState.DASHBOARD)} />;
 
   if (!user) return <Auth onLogin={handleLogin} />;
 

@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { Wallet, TrendingDown, Zap, Bell, Sparkles, ArrowRight, Clock, Target, ShieldCheck, Activity } from 'lucide-react';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, Radar, PieChart, Pie, Cell } from 'recharts';
+import { Wallet, TrendingDown, Zap, Bell, Sparkles, ArrowRight, Clock, ShieldCheck, Activity, PieChart as PieIcon } from 'lucide-react';
 import { Transaction, ViewState } from '../types';
 import { translations } from '../translations';
 
@@ -12,21 +12,32 @@ interface DashboardProps {
   language: 'pt-BR' | 'en-US' | 'es-ES';
 }
 
+const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#06b6d4'];
+
 const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpenChatWithPrompt, language }) => {
   const t = translations[language];
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const netIncome = totalIncome - totalExpense;
 
-  // Processamento de dados para o gráfico de radar (Composição por Categoria)
-  const categoryData = transactions.reduce((acc: any, tx) => {
+  // Processamento para Radar e Pie
+  const categoryTotals = transactions.reduce((acc: any, tx) => {
     if (tx.type === 'expense') {
-        const existing = acc.find((a: any) => a.subject === tx.category);
-        if (existing) existing.A += tx.amount;
-        else acc.push({ subject: tx.category, A: tx.amount, fullMark: 10000 });
+        acc[tx.category] = (acc[tx.category] || 0) + tx.amount;
     }
     return acc;
-  }, []).sort((a: any, b: any) => b.A - a.A).slice(0, 6);
+  }, {});
+
+  const radarData = Object.keys(categoryTotals).map(cat => ({
+    subject: cat,
+    A: categoryTotals[cat],
+    fullMark: Math.max(...(Object.values(categoryTotals) as number[])) || 100
+  })).sort((a, b) => b.A - a.A).slice(0, 6);
+
+  const pieData = Object.keys(categoryTotals).map(cat => ({
+    name: cat,
+    value: categoryTotals[cat]
+  })).sort((a, b) => b.value - a.value).slice(0, 5);
 
   const StatCard = ({ title, value, trend, icon: Icon, colorClass, trendValue, viewTarget }: any) => (
     <button onClick={() => onViewChange?.(viewTarget || ViewState.TRANSACTIONS)} className="w-full text-left bg-white p-6 rounded-3xl border border-slate-100 transition-all hover:-translate-y-1 hover:shadow-xl group">
@@ -51,37 +62,47 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <button onClick={() => onViewChange?.(ViewState.REPORTS)} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm text-left hover:ring-2 hover:ring-indigo-500/10 transition-all group overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-full -mr-12 -mt-12 opacity-50 group-hover:scale-125 transition-transform"></div>
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden group">
                 <h3 className="text-xl font-black text-slate-950 italic tracking-tighter mb-8 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-indigo-500"/> Composição Neural
+                    <Activity className="w-5 h-5 text-indigo-500"/> Dispersão de Categorias
                 </h3>
                 <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={categoryData}>
+                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
                             <PolarGrid stroke="#f1f5f9" />
                             <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 900 }} />
                             <Radar name="Gastos" dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.4} />
-                            <Tooltip />
+                            <Tooltip formatter={(value: number) => `R$ ${value.toLocaleString()}`} />
                         </RadarChart>
                     </ResponsiveContainer>
                 </div>
-            </button>
+            </div>
 
-            <button onClick={() => onViewChange?.(ViewState.REPORTS)} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm text-left hover:ring-2 hover:ring-brand/10 transition-all group">
-                <h3 className="text-xl font-black text-slate-900 italic tracking-tighter mb-8 group-hover:text-brand">Fluxo Histórico</h3>
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group">
+                <h3 className="text-xl font-black text-slate-950 italic tracking-tighter mb-8 flex items-center gap-2">
+                    <PieIcon className="w-5 h-5 text-purple-500"/> Mix de Despesas
+                </h3>
                 <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={[{name: 'D-3', v: 400}, {name: 'D-2', v: 300}, {name: 'D-1', v: 600}, {name: 'Hoje', v: 800}]}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                        <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                        <Tooltip />
-                        <Area type="monotone" dataKey="v" stroke="#6366f1" fill="#6366f1" fillOpacity={0.05} strokeWidth={4} />
-                    </AreaChart>
+                        <PieChart>
+                            <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                                {pieData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip formatter={(value: number) => `R$ ${value.toLocaleString()}`} />
+                        </PieChart>
                     </ResponsiveContainer>
                 </div>
-            </button>
+                <div className="absolute bottom-8 left-8 right-8 flex flex-wrap gap-2 justify-center">
+                   {pieData.map((d, i) => (
+                     <div key={i} className="flex items-center gap-1.5">
+                       <div className="w-2 h-2 rounded-full" style={{backgroundColor: COLORS[i % COLORS.length]}}></div>
+                       <span className="text-[9px] font-black uppercase text-slate-400">{d.name}</span>
+                     </div>
+                   ))}
+                </div>
+            </div>
         </div>
 
         <div className="bg-slate-950 text-white p-8 rounded-[2.5rem] flex flex-col shadow-2xl relative overflow-hidden group">
@@ -97,12 +118,12 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
                   </div>
                   <p className="text-sm font-bold">Vencimentos monitorados pela IA.</p>
               </button>
-              <button onClick={() => onOpenChatWithPrompt?.("Faça uma auditoria minuciosa focando em discrepâncias de categorias no caixa de hoje.")} className="w-full text-left bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-2xl hover:bg-indigo-500/20 transition-colors">
+              <button onClick={() => onOpenChatWithPrompt?.("Realize uma auditoria neural profunda procurando furos de caixa, discrepâncias nas categorias e erros de lançamento de hoje.")} className="w-full text-left bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-2xl hover:bg-indigo-500/20 transition-colors">
                   <div className="flex items-center gap-2 mb-1">
                       <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                      <span className="text-[10px] font-black uppercase text-slate-400">Auditoria Neural de Furos</span>
+                      <span className="text-[10px] font-black uppercase text-slate-400">Auditoria Neural Sênior</span>
                   </div>
-                  <p className="text-sm font-bold">Detectar furos de caixa agora.</p>
+                  <p className="text-sm font-bold">Localizar furos operacionais agora.</p>
               </button>
           </div>
           <button onClick={() => onViewChange?.(ViewState.REPORTS)} className="mt-8 flex items-center justify-between bg-white text-slate-900 p-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition shadow-xl relative z-10">

@@ -40,7 +40,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
     const reader = new FileReader();
     reader.onload = async (evt) => {
         const base64 = (evt.target?.result as string).split(',')[1];
-        const json = await analyzeDocument(base64, file.type, 'transaction');
+        const json = await analyzeDocument(base64, file.type, 'transaction', categories);
         try {
             const data = JSON.parse(json);
             const newTx: Transaction = {
@@ -56,10 +56,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
                 paymentMethod: data.paymentMethod || '',
                 costCenter: data.costCenter || ''
             };
-            onImportTransactions([newTx]);
             setEditingTx(newTx);
             setIsModalOpen(true);
-        } catch(e) { alert("Erro ao processar scan."); }
+        } catch(e) { alert("Erro ao processar scan neural."); }
         finally { setIsProcessing(false); }
     };
     reader.readAsDataURL(file);
@@ -110,8 +109,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
           source: editingTx?.source || 'manual'
       };
 
-      if (editingTx) onEditTransaction(data);
-      else onImportTransactions([data]);
+      if (editingTx && transactions.some(t => t.id === editingTx.id)) {
+        onEditTransaction(data);
+      } else {
+        onImportTransactions([data]);
+      }
       
       setIsModalOpen(false);
       setEditingTx(null);
