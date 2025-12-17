@@ -2,7 +2,13 @@
 import { GoogleGenAI } from "@google/genai";
 import { Transaction } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Inicialização segura para evitar ReferenceError: process is not defined ou falhas de chave
+let ai: any = null;
+try {
+  ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+} catch (e) {
+  console.error("FinAI: Falha ao inicializar motor de IA (Gemini). Funções inteligentes podem estar limitadas.", e);
+}
 
 const SYSTEM_INSTRUCTION = `
 Você é o FinAI, o assistente virtual de finanças mais prestativo e profissional.
@@ -21,6 +27,8 @@ export const sendMessageToGemini = async (
   imageBase64?: string,
   imageMimeType?: string
 ): Promise<string> => {
+  if (!ai) return "O motor de IA está offline no momento. Verifique as configurações de sistema.";
+  
   try {
     const modelId = "gemini-3-flash-preview";
     const parts: any[] = [{ text: message }];
@@ -50,6 +58,8 @@ export const sendMessageToGemini = async (
 };
 
 export const performAudit = async (transactions: Transaction[]): Promise<string> => {
+  if (!ai) return "Módulo de auditoria indisponível.";
+  
   try {
     const summary = transactions.map(t => `- ${t.date}: ${t.description} (R$ ${t.amount}) [${t.category}]`).join('\n');
     const response = await ai.models.generateContent({
@@ -64,6 +74,8 @@ export const performAudit = async (transactions: Transaction[]): Promise<string>
 };
 
 export const getStrategicSuggestions = async (transactions: Transaction[], period: 'semanal' | 'mensal'): Promise<string> => {
+    if (!ai) return "Módulo estratégico indisponível.";
+    
     try {
       const summary = transactions.slice(0, 50).map(t => `- ${t.description}: R$ ${t.amount}`).join('\n');
       const response = await ai.models.generateContent({
@@ -78,6 +90,8 @@ export const getStrategicSuggestions = async (transactions: Transaction[], perio
 };
 
 export const analyzeReceipt = async (base64Data: string, mimeType: string): Promise<string> => {
+    if (!ai) return "{}";
+    
     try {
         const response = await ai.models.generateContent({
             model: "gemini-3-flash-preview",
@@ -109,6 +123,8 @@ export const analyzeReceipt = async (base64Data: string, mimeType: string): Prom
 }
 
 export const generateDashboardInsights = async (transactions: Transaction[]): Promise<string> => {
+  if (!ai) return "IA desconectada.";
+  
   try {
     const summary = transactions.slice(0, 30).map(t => `- ${t.date}: ${t.description} (R$ ${t.amount})`).join('\n');
     const response = await ai.models.generateContent({
@@ -125,6 +141,8 @@ export const generateDashboardInsights = async (transactions: Transaction[]): Pr
 };
 
 export const generateExecutiveReport = async (transactions: Transaction[], period: string): Promise<string> => {
+  if (!ai) return "Relatório indisponível.";
+  
   try {
     const summary = transactions.map(t => `- ${t.date}: ${t.description} (R$ ${t.amount})`).join('\n');
     const response = await ai.models.generateContent({
