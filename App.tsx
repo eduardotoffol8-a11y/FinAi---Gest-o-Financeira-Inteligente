@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, Menu, FileText, Calendar as CalendarIcon, LogOut, UploadCloud, Plus, X, Loader2, CheckCircle2, Command, CloudCheck, MessageSquare, Share2 } from 'lucide-react';
+import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, Menu, FileText, Calendar as CalendarIcon, LogOut, UploadCloud, Plus, X, Loader2, CheckCircle2, Command, MessageSquare, Share2 } from 'lucide-react';
 import { Transaction, ViewState, Contact, ScheduledItem, TeamMember, CorporateMessage } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionList from './components/TransactionList';
@@ -195,7 +195,7 @@ function App() {
                   {view.replace('_', ' ')}
               </h2>
               <div className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black tracking-widest transition-all ${isSaving ? 'bg-indigo-50 text-indigo-500' : 'bg-emerald-50 text-emerald-600'}`}>
-                <CloudCheck className={`w-3.5 h-3.5 ${isSaving ? 'animate-spin' : ''}`}/>
+                {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                 {isSaving ? 'SINC...' : 'SISTEMA SEGURO'}
               </div>
           </div>
