@@ -1,7 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, X, Loader2, Check, FileText, Brain } from 'lucide-react';
-import { sendMessageToGemini, analyzeReceipt } from '../services/geminiService';
+// Import analyzeDocument instead of the non-existent analyzeReceipt
+import { sendMessageToGemini, analyzeDocument } from '../services/geminiService';
 import { ChatMessage, Transaction } from '../types';
 
 interface AIChatProps {
@@ -52,7 +53,8 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
 
     try {
       if (currentImage) {
-         const jsonStr = await analyzeReceipt(currentImage.base64.split(',')[1], currentImage.type);
+         // Using analyzeDocument with the required 'transaction' type parameter
+         const jsonStr = await analyzeDocument(currentImage.base64.split(',')[1], currentImage.type, 'transaction');
          const data = JSON.parse(jsonStr);
          if (data.amount) {
             setMessages(prev => [...prev, {

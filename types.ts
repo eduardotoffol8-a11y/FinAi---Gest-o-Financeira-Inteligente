@@ -4,12 +4,15 @@ export interface Transaction {
   date: string;
   description: string;
   category: string;
+  subCategory?: string;
   amount: number;
   type: 'income' | 'expense';
   status: 'paid' | 'pending' | 'overdue';
   attachmentUrl?: string;
   source?: 'manual' | 'ai';
   supplier?: string;
+  paymentMethod?: string;
+  costCenter?: string;
 }
 
 export interface GeneratedReport {
@@ -24,13 +27,16 @@ export interface GeneratedReport {
 export interface Contact {
   id: string;
   name: string;
-  cnpj?: string;
+  taxId?: string; // CPF/CNPJ
   type: 'client' | 'supplier' | 'both';
   email?: string;
   phone?: string;
+  address?: string;
+  paymentTerms?: string;
   totalTraded: number;
   lastInteraction?: string;
   reliabilityScore?: number;
+  source?: 'manual' | 'ai';
 }
 
 export interface TeamMember {
@@ -84,7 +90,7 @@ export interface ChatMessage {
     base64: string;
   }[];
   isDraft?: boolean;
-  draftData?: Omit<Transaction, 'id'>;
+  draftData?: Partial<Transaction>;
 }
 
 export enum ViewState {
