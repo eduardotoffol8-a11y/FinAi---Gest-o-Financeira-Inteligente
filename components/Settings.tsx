@@ -1,6 +1,6 @@
 
 import React, { useRef, useState } from 'react';
-import { Building, UploadCloud, Command, Save, Users, Check, Globe, ShieldCheck, Download, FileJson, AlertTriangle, Fingerprint, Lock, Palette, MonitorPlay, Tags, Plus, Trash2 } from 'lucide-react';
+import { Building, UploadCloud, Command, Save, Users, Check, Globe, ShieldCheck, Download, FileJson, AlertTriangle, Fingerprint, Lock, Palette, MonitorPlay, Tags, Plus, Trash2, X } from 'lucide-react';
 import { TeamMember } from '../types';
 import { translations } from '../translations';
 
@@ -30,17 +30,45 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, categori
     };
 
     const handleAddCategory = () => {
-        if (!newCat.trim()) return;
-        if (categories.includes(newCat.trim())) {
+        const trimmed = newCat.trim();
+        if (!trimmed) return;
+        if (categories.includes(trimmed)) {
             alert("Categoria já existente.");
             return;
         }
-        setCategories([...categories, newCat.trim()]);
+        setCategories([...categories, trimmed]);
         setNewCat('');
     };
 
     const handleRemoveCategory = (cat: string) => {
         setCategories(categories.filter(c => c !== cat));
+    };
+
+    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Limite de 2MB para evitar estouro de LocalStorage
+        if (file.size > 2 * 1024 * 1024) {
+            alert("Imagem muito grande. Utilize um logo de até 2MB.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const result = evt.target?.result;
+            if (typeof result === 'string') {
+                setCompanyInfo({ ...companyInfo, logo: result });
+            }
+        };
+        reader.onerror = () => alert("Erro ao carregar imagem.");
+        reader.readAsDataURL(file);
+    };
+
+    const handleRemoveLogo = () => {
+        if (confirm("Deseja remover o logo da empresa?")) {
+            setCompanyInfo({ ...companyInfo, logo: null });
+        }
     };
 
     const handleExportBackup = () => {
@@ -86,7 +114,7 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, categori
                                     type="color" 
                                     value={companyInfo.brandColor} 
                                     onChange={(e) => setCompanyInfo({...companyInfo, brandColor: e.target.value})}
-                                    className="w-16 h-16 rounded-2xl border-none cursor-pointer p-0 overflow-hidden shadow-lg" 
+                                    className="w-16 h-16 rounded-2xl border-none cursor-pointer p-0 overflow-hidden shadow-lg transition-transform hover:scale-110" 
                                 />
                                 <span className="font-mono text-xs font-bold text-slate-500 uppercase">{companyInfo.brandColor}</span>
                             </div>
@@ -94,18 +122,25 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, categori
                         <div className="space-y-4">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Logo da Empresa</label>
                             <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-center overflow-hidden shadow-inner">
-                                    {companyInfo.logo ? <img src={companyInfo.logo} className="w-full h-full object-cover" /> : <Command className="w-6 h-6 text-slate-200" />}
+                                <div className="relative group">
+                                    <div className="w-16 h-16 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-center overflow-hidden shadow-inner">
+                                        {companyInfo.logo ? (
+                                            <img src={companyInfo.logo} className="w-full h-full object-cover" alt="Company Logo" />
+                                        ) : (
+                                            <Command className="w-6 h-6 text-slate-200" />
+                                        )}
+                                    </div>
+                                    {companyInfo.logo && (
+                                        <button 
+                                            onClick={handleRemoveLogo}
+                                            className="absolute -top-2 -right-2 bg-rose-500 text-white p-1 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    )}
                                 </div>
-                                <button onClick={() => logoInputRef.current?.click()} className="px-6 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-colors">Upload Logo</button>
-                                <input type="file" ref={logoInputRef} className="hidden" accept="image/*" onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                        const reader = new FileReader();
-                                        reader.onload = (evt) => setCompanyInfo({...companyInfo, logo: evt.target?.result as string});
-                                        reader.readAsDataURL(file);
-                                    }
-                                }} />
+                                <button onClick={() => logoInputRef.current?.click()} className="px-6 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-colors">Alterar Logo</button>
+                                <input type="file" ref={logoInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
                             </div>
                         </div>
                     </div>
@@ -115,8 +150,12 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, categori
                             value={companyInfo.name} 
                             onChange={(e) => setCompanyInfo({...companyInfo, name: e.target.value.toUpperCase()})}
                             className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-8 py-5 text-slate-950 font-black outline-none focus:ring-4 focus:ring-brand/5 text-xl uppercase tracking-tighter" 
+                            placeholder="NOME DA EMPRESA"
                         />
                     </div>
+                    <button onClick={handleSave} className="px-10 py-5 bg-slate-950 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-3 shadow-xl">
+                        {isSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />} {isSaved ? 'Preferências Salvas' : t.save}
+                    </button>
                  </div>
              </div>
 
@@ -137,6 +176,7 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, categori
                         <input 
                             value={newCat} 
                             onChange={(e) => setNewCat(e.target.value)} 
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
                             placeholder="Nova Categoria (Ex: Limpeza)" 
                             className="flex-1 bg-slate-50 border border-slate-200 p-5 rounded-2xl font-bold outline-none text-xs uppercase"
                         />
@@ -199,9 +239,11 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, categori
                              if (file && confirm("ATENÇÃO: A restauração master substituirá todos os dados atuais. Prosseguir?")) {
                                  const reader = new FileReader();
                                  reader.onload = (evt) => {
-                                     const data = JSON.parse(evt.target?.result as string);
-                                     localStorage.setItem('maestria_v11_enterprise_stable', JSON.stringify(data));
-                                     window.location.reload();
+                                     try {
+                                         const data = JSON.parse(evt.target?.result as string);
+                                         localStorage.setItem('maestria_v11_enterprise_stable', JSON.stringify(data));
+                                         window.location.reload();
+                                     } catch(e) { alert("Erro ao processar backup. Arquivo corrompido."); }
                                  };
                                  reader.readAsText(file);
                              }

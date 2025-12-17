@@ -71,7 +71,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
                         <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
                             <PolarGrid stroke="#f1f5f9" />
                             <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 900 }} />
-                            <Radar name="Gastos" dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.4} />
+                            <Radar name="Gastos" dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.6} strokeWidth={2} />
                             <Tooltip formatter={(value: number) => `R$ ${value.toLocaleString()}`} />
                         </RadarChart>
                     </ResponsiveContainer>
@@ -118,7 +118,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
                   </div>
                   <p className="text-sm font-bold">Vencimentos monitorados pela IA.</p>
               </button>
-              <button onClick={() => onOpenChatWithPrompt?.("Realize uma auditoria neural profunda procurando furos de caixa, discrepâncias nas categorias e erros de lançamento de hoje.")} className="w-full text-left bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-2xl hover:bg-indigo-500/20 transition-colors">
+              <button onClick={() => onOpenChatWithPrompt?.("Analise meu extrato em busca de furos e anomalias de categoria. Gere uma auditoria de precisão agora.")} className="w-full text-left bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-2xl hover:bg-indigo-500/20 transition-colors">
                   <div className="flex items-center gap-2 mb-1">
                       <ShieldCheck className="w-4 h-4 text-emerald-400" />
                       <span className="text-[10px] font-black uppercase text-slate-400">Auditoria Neural Sênior</span>

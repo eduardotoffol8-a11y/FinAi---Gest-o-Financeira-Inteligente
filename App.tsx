@@ -16,6 +16,7 @@ import CorporateChat from './components/CorporateChat';
 import { translations } from './translations';
 
 const STORAGE_KEY = 'maestria_v11_enterprise_stable';
+const BRAND_STORAGE_KEY = 'maestria_brand_v2';
 
 const DEFAULT_CATEGORIES = ['Alimentação', 'Limpeza', 'Funcionários', 'Impostos', 'Material', 'Operacional', 'Marketing', 'Vendas', 'Aluguel', 'Financeiro', 'Utilidades'];
 
@@ -29,7 +30,7 @@ function App() {
   });
 
   const [companyInfo, setCompanyInfo] = useState(() => {
-    const saved = localStorage.getItem('maestria_brand');
+    const saved = localStorage.getItem(BRAND_STORAGE_KEY);
     try {
       return saved ? JSON.parse(saved) : {
         name: 'EMPRESA MASTER',
@@ -101,7 +102,7 @@ function App() {
   }, [transactions, contacts, schedule, team, corporateMessages, categories, isLoaded, user]);
 
   useEffect(() => {
-    localStorage.setItem('maestria_brand', JSON.stringify(companyInfo));
+    localStorage.setItem(BRAND_STORAGE_KEY, JSON.stringify(companyInfo));
     localStorage.setItem('maestria_lang', language);
     localStorage.setItem('maestria_last_view', view);
     document.documentElement.style.setProperty('--brand-color', companyInfo.brandColor);
@@ -114,12 +115,11 @@ function App() {
 
   if (!isLoaded) return (
     <div className="h-screen bg-slate-950 flex flex-col items-center justify-center">
-      <Loader2 className="w-12 h-12 animate-spin text-white mb-6" />
-      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500">Sincronizando Ecossistema MaestrIA...</p>
+      <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-6"></div>
+      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Sincronizando Ecossistema MaestrIA...</p>
     </div>
   );
 
-  // Cast para evitar erro de build TS2367 em versões estritas de TS
   const currentView = view as ViewState;
   if (currentView === ViewState.LANDING) return <Subscription onConfirm={() => setView(ViewState.DASHBOARD)} onCancel={() => setView(ViewState.DASHBOARD)} />;
 
@@ -140,9 +140,11 @@ function App() {
     <div className="flex h-screen bg-[#f8fafc] font-sans overflow-hidden">
       <style>{`
         :root { --brand-color: ${companyInfo.brandColor}; }
-        .text-brand { color: var(--brand-color); }
-        .bg-brand { background-color: var(--brand-color); }
-        .border-brand { border-color: var(--brand-color); }
+        .text-brand { color: var(--brand-color) !important; }
+        .bg-brand { background-color: var(--brand-color) !important; }
+        .border-brand { border-color: var(--brand-color) !important; }
+        .focus\\:ring-brand\\/5:focus { --tw-ring-color: color-mix(in srgb, var(--brand-color) 5%, transparent); }
+        .group:hover .group-hover\\:text-brand { color: var(--brand-color) !important; }
       `}</style>
 
       <aside className="hidden lg:flex w-80 bg-white border-r border-slate-100 flex-col p-8 z-20 shadow-sm">

@@ -43,21 +43,24 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         const json = await analyzeDocument(base64, file.type, 'transaction', categories);
         try {
             const data = JSON.parse(json);
-            const newTx: Transaction = {
-                id: Date.now().toString(),
-                date: data.date || new Date().toISOString().split('T')[0],
-                description: data.description || 'Processado por MaestrIA',
-                category: data.category || (categories[0] || 'Operacional'),
-                amount: data.amount || 0,
-                type: data.type || 'expense',
+            const items = Array.isArray(data) ? data : [data];
+            
+            const mappedItems: Transaction[] = items.map((item: any) => ({
+                id: Math.random().toString(36).substr(2, 9),
+                date: item.date || new Date().toISOString().split('T')[0],
+                description: item.description || 'Processado por MaestrIA',
+                category: item.category || (categories[0] || 'Operacional'),
+                amount: Math.abs(Number(item.amount)) || 0,
+                type: item.amount < 0 || item.type === 'expense' ? 'expense' : 'income',
                 status: 'pending',
                 source: 'ai',
-                supplier: data.supplier || '',
-                paymentMethod: data.paymentMethod || '',
-                costCenter: data.costCenter || ''
-            };
-            setEditingTx(newTx);
-            setIsModalOpen(true);
+                supplier: item.supplier || '',
+                paymentMethod: item.paymentMethod || '',
+                costCenter: item.costCenter || ''
+            }));
+
+            onImportTransactions(mappedItems);
+            alert(`${mappedItems.length} transações detectadas e adicionadas como pendentes.`);
         } catch(e) { alert("Erro ao processar scan neural."); }
         finally { setIsProcessing(false); }
     };
@@ -133,14 +136,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
                 <input type="text" placeholder="Filtrar lançamentos..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-[11px] font-black uppercase outline-none focus:ring-4 focus:ring-brand/5 transition-all" />
             </div>
             <button onClick={() => { setEditingTx(null); setIsModalOpen(true); }} className="bg-slate-950 text-white px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-brand transition-all flex items-center gap-2 shadow-lg"><Plus className="w-4 h-4" /> Novo</button>
-            <button onClick={() => bulkInputRef.current?.click()} className="bg-white border-2 border-slate-200 text-slate-950 px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2">
-                <FileText className="w-4 h-4 text-slate-400" /> Importar Lista
-            </button>
             <button onClick={() => scanInputRef.current?.click()} className="bg-white border-2 border-slate-200 text-slate-950 px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-brand transition-all flex items-center gap-2">
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin"/> : <Sparkles className="w-4 h-4 text-brand" />} Scan IA
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin"/> : <Sparkles className="w-4 h-4 text-brand" />} Scan Extrato IA
             </button>
             <input type="file" ref={scanInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleScan} />
-            <input type="file" ref={bulkInputRef} className="hidden" accept=".csv, .xlsx, .xls" onChange={handleBulkImport} />
         </div>
       </div>
 
@@ -165,8 +164,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
                     <p className="font-black text-slate-950 uppercase italic text-sm group-hover:text-brand transition-colors">{tx.description}</p>
                     <div className="flex gap-4 mt-1">
                         <span className="text-[10px] font-bold text-slate-400 uppercase">{tx.category}</span>
-                        {tx.costCenter && <span className="text-[10px] font-black text-indigo-400 uppercase">Centro: {tx.costCenter}</span>}
-                        {tx.supplier && <span className="text-[10px] font-black text-slate-400 uppercase">Parceiro: {tx.supplier}</span>}
                     </div>
                 </td>
                 <td className={`px-10 py-6 font-black text-lg tracking-tighter ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-950'}`}>
@@ -210,30 +207,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
                                 </select>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Parceiro Relacionado</label>
-                                <input name="supplier" defaultValue={editingTx?.supplier} placeholder="Nome do parceiro" className="w-full bg-slate-50 border border-slate-200 p-5 rounded-2xl font-bold outline-none text-xs uppercase" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Centro de Custo</label>
-                                <input name="costCenter" defaultValue={editingTx?.costCenter} placeholder="Ex: Matriz, Filial Norte" className="w-full bg-slate-50 border border-slate-200 p-5 rounded-2xl font-bold outline-none text-xs uppercase" />
-                            </div>
-                            <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Data</label>
                                 <input name="date" type="date" defaultValue={editingTx?.date || new Date().toISOString().split('T')[0]} required className="w-full bg-slate-50 border border-slate-200 p-5 rounded-2xl font-bold outline-none text-sm" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Tipo</label>
-                                <select name="type" defaultValue={editingTx?.type || 'expense'} className="w-full bg-slate-50 border border-slate-200 p-5 rounded-2xl font-bold outline-none text-xs uppercase">
-                                    <option value="income">Entrada (Receita)</option>
-                                    <option value="expense">Saída (Despesa)</option>
-                                </select>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Status</label>
-                                <select name="status" defaultValue={editingTx?.status || 'paid'} className="w-full bg-slate-50 border border-slate-200 p-5 rounded-2xl font-bold outline-none text-xs uppercase">
-                                    <option value="paid">Confirmado</option>
-                                    <option value="pending">Pendente</option>
-                                </select>
                             </div>
                         </div>
                         <button type="submit" className="w-full bg-slate-950 text-white font-black py-6 rounded-3xl shadow-2xl transition-all uppercase text-xs tracking-widest hover:bg-brand">

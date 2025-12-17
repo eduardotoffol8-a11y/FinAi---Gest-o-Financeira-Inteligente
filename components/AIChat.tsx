@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, X, Loader2, Check, FileText, Brain } from 'lucide-react';
-import { sendMessageToGemini, analyzeDocument } from '../services/geminiService';
+import { Send, Paperclip, X, Loader2, Check, FileText, Brain, ListChecks } from 'lucide-react';
+import { sendMessageToGemini, analyzeDocument, extractFromText } from '../services/geminiService';
 import { ChatMessage, Transaction } from '../types';
 
 interface AIChatProps {
@@ -16,7 +16,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
     {
       id: 'welcome',
       role: 'model',
-      text: 'Olá! Sou a MaestrIA, sua consultora neural de finanças. Em que posso auxiliá-lo hoje?',
+      text: 'Olá! Sou a MaestrIA. Suba um extrato, uma imagem de recibo ou cole os dados bancários para uma análise de precisão.',
       timestamp: new Date(),
     },
   ]);
@@ -33,6 +33,35 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
     if (isOpen) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isOpen]);
 
+  const processBatch = (items: any[]) => {
+      const savedData = localStorage.getItem('maestria_v11_enterprise_stable');
+      const categories = savedData ? JSON.parse(savedData).categories : [];
+
+      items.forEach(item => {
+          const draft: Omit<Transaction, 'id'> = {
+              date: item.date || new Date().toISOString().split('T')[0],
+              description: item.description || 'Scan IA Multi',
+              category: item.category || (categories[0] || 'Operacional'),
+              amount: Math.abs(Number(item.amount)) || 0,
+              type: item.amount < 0 || item.type === 'expense' ? 'expense' : 'income',
+              status: 'pending',
+              source: 'ai',
+              supplier: item.supplier || '',
+              paymentMethod: item.paymentMethod || '',
+              costCenter: item.costCenter || ''
+          };
+          
+          setMessages(prev => [...prev, {
+              id: `draft-${Date.now()}-${Math.random()}`,
+              role: 'model',
+              text: `Detectei: ${draft.description} - R$ ${draft.amount} (${draft.category})`,
+              timestamp: new Date(),
+              isDraft: true,
+              draftData: draft
+          }]);
+      });
+  };
+
   const handleSendMessage = async () => {
     if ((!inputValue.trim() && !attachedImage) || isLoading) return;
 
@@ -48,47 +77,36 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
     setInputValue('');
     setIsLoading(true);
     const currentImage = attachedImage;
+    const currentText = inputValue;
     setAttachedImage(null);
 
     try {
-      if (currentImage) {
-         // Tenta analisar com contexto de categorias (carregadas do storage se possível)
-         const savedData = localStorage.getItem('maestria_v11_enterprise_stable');
-         const categories = savedData ? JSON.parse(savedData).categories : [];
-         
-         const jsonStr = await analyzeDocument(currentImage.base64.split(',')[1], currentImage.type, 'transaction', categories);
-         const data = JSON.parse(jsonStr);
-         if (data.amount) {
-            const draft: Omit<Transaction, 'id'> = {
-                date: data.date || new Date().toISOString().split('T')[0],
-                description: data.description || 'Scan IA Neural',
-                category: data.category || (categories[0] || 'Operacional'),
-                amount: Number(data.amount) || 0,
-                type: data.type === 'income' ? 'income' : 'expense',
-                status: 'pending',
-                source: 'ai',
-                supplier: data.supplier || '',
-                paymentMethod: data.paymentMethod || '',
-                costCenter: data.costCenter || ''
-            };
+      const savedData = localStorage.getItem('maestria_v11_enterprise_stable');
+      const categories = savedData ? JSON.parse(savedData).categories : [];
 
-            setMessages(prev => [...prev, {
-                id: Date.now().toString(),
-                role: 'model',
-                text: `Identifiquei um registro de R$ ${draft.amount} para a categoria ${draft.category}. Deseja efetivar o lançamento?`,
-                timestamp: new Date(),
-                isDraft: true,
-                draftData: draft
-            }]);
-            setIsLoading(false);
-            return;
+      if (currentImage) {
+         const jsonStr = await analyzeDocument(currentImage.base64.split(',')[1], currentImage.type, 'transaction', categories);
+         const items = JSON.parse(jsonStr);
+         if (Array.isArray(items)) {
+             processBatch(items);
+             setIsLoading(false);
+             return;
          }
+      } else if (currentText.length > 50 && (currentText.includes('Despesa') || currentText.includes('Receita') || currentText.includes('BRL'))) {
+          // Detecta se é um texto de extrato colado
+          const jsonStr = await extractFromText(currentText, categories);
+          const items = JSON.parse(jsonStr);
+          if (Array.isArray(items)) {
+              processBatch(items);
+              setIsLoading(false);
+              return;
+          }
       }
 
       const responseText = await sendMessageToGemini(newUserMsg.text, []);
       setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'model', text: responseText, timestamp: new Date() }]);
     } catch (error) {
-      setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'model', text: 'Chave MaestrIA pendente. Verifique suas configurações neurais.', timestamp: new Date() }]);
+      setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'model', text: 'Chave MaestrIA pendente. Verifique suas configurações.', timestamp: new Date() }]);
     } finally {
       setIsLoading(false);
     }
@@ -104,9 +122,9 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
              <Brain className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="font-black text-xl italic tracking-tight">MaestrIA</h2>
+            <h2 className="font-black text-xl italic tracking-tight">MaestrIA Neural</h2>
             <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-400 font-black uppercase tracking-widest">
-                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span> Sistema Ativo
+                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span> Análise Ativa
             </div>
           </div>
         </div>
@@ -123,13 +141,13 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
               }`}>
               <div className="whitespace-pre-wrap">{msg.text}</div>
               {msg.isDraft && msg.draftData && (
-                  <div className="mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-5">
-                      <div className="space-y-3 mb-5">
-                          <div className="flex justify-between text-xs font-black uppercase text-slate-400 tracking-widest">
-                              <span>Valor Detectado</span>
+                  <div className="mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-5 border-l-4 border-l-indigo-500">
+                      <div className="space-y-2 mb-4">
+                          <div className="flex justify-between text-[10px] font-black uppercase text-slate-400">
+                              <span>Valor</span>
                               <span className="text-slate-900">R$ {msg.draftData.amount}</span>
                           </div>
-                          <div className="flex justify-between text-xs font-black uppercase text-slate-400 tracking-widest">
+                          <div className="flex justify-between text-[10px] font-black uppercase text-slate-400">
                               <span>Categoria</span>
                               <span className="text-indigo-600 italic">{msg.draftData.category}</span>
                           </div>
@@ -137,9 +155,9 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
                       <button onClick={() => { 
                         if (msg.draftData) {
                           onAddTransaction(msg.draftData); 
-                          setMessages(p => p.map(m => m.id === msg.id ? {...m, isDraft: false, text: 'Lançamento efetivado com sucesso no OS MaestrIA.'} : m));
+                          setMessages(p => p.map(m => m.id === msg.id ? {...m, isDraft: false, text: `✓ Lançamento [${msg.draftData?.description}] efetivado.`} : m));
                         }
-                      }} className="w-full bg-indigo-600 text-white text-xs font-black py-4 rounded-xl shadow-lg hover:bg-indigo-700 transition-colors">EFETIVAR LANÇAMENTO</button>
+                      }} className="w-full bg-indigo-600 text-white text-[10px] font-black py-3 rounded-xl shadow-lg hover:bg-indigo-700 transition-colors uppercase">Confirmar</button>
                   </div>
               )}
             </div>
@@ -150,18 +168,44 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
 
       <div className="p-6 bg-white border-t border-slate-100">
         <div className="flex gap-4 items-center bg-slate-100 p-4 rounded-2xl">
+          <button onClick={() => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = 'image/*,application/pdf';
+              input.onchange = (e: any) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (evt: any) => {
+                          setAttachedImage({
+                              base64: evt.target.result,
+                              url: URL.createObjectURL(file),
+                              type: file.type
+                          });
+                      };
+                      reader.readAsDataURL(file);
+                  }
+              };
+              input.click();
+          }} className="p-2.5 text-slate-400 hover:text-indigo-600"><Paperclip className="w-5 h-5"/></button>
           <input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="Comande sua Inteligência Financeira..."
+            placeholder="Cole o extrato ou descreva o gasto..."
             className="flex-1 bg-transparent focus:outline-none text-sm text-slate-900 font-bold"
           />
           <button onClick={handleSendMessage} disabled={isLoading} className="p-2.5 bg-slate-950 text-white rounded-xl shadow-lg">
-             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
           </button>
         </div>
+        {attachedImage && (
+            <div className="mt-4 p-3 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between">
+                <span className="text-[10px] font-black text-indigo-600 uppercase">Documento pronto para análise neural</span>
+                <button onClick={() => setAttachedImage(null)}><X className="w-4 h-4 text-rose-500"/></button>
+            </div>
+        )}
       </div>
     </div>
   );
