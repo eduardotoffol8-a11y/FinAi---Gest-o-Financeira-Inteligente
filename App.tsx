@@ -52,14 +52,19 @@ function App() {
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      const data = JSON.parse(saved);
-      setTransactions(data.transactions || []);
-      setContacts(data.contacts || []);
-      setSchedule(data.schedule || []);
-      setTeam(data.team || []);
-      setCorporateMessages(data.corporateMessages || []);
+      try {
+        const data = JSON.parse(saved);
+        setTransactions(data.transactions || []);
+        setContacts(data.contacts || []);
+        setSchedule(data.schedule || []);
+        setTeam(data.team || []);
+        setCorporateMessages(data.corporateMessages || []);
+      } catch (e) {
+        console.error("Erro ao carregar dados locais:", e);
+      }
     }
     
+    // Inicialização da equipe caso esteja vazia
     if (!saved || (JSON.parse(saved).team?.length === 0)) {
       setTeam([
         { id: '1', name: 'Admin FinAI', role: 'admin', status: 'online', avatar: 'https://i.pravatar.cc/150?u=admin' },
@@ -72,7 +77,8 @@ function App() {
   useEffect(() => {
     if (user) {
       setIsSaving(true);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ transactions, contacts, schedule, team, corporateMessages }));
+      const dataToSave = { transactions, contacts, schedule, team, corporateMessages };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
       const timer = setTimeout(() => setIsSaving(false), 1200);
       return () => clearTimeout(timer);
     }
