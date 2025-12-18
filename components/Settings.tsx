@@ -7,7 +7,7 @@ import { testConnection } from '../services/geminiService';
 
 interface SettingsProps {
   team: TeamMember[];
-  onUpdateMember: (member: TeamMember) => void;
+  onUpdateMember?: (member: TeamMember) => void;
   categories: string[];
   setCategories: (cats: string[]) => void;
   companyInfo: any;
@@ -19,7 +19,19 @@ interface SettingsProps {
   onStatusUpdate?: (status: boolean | null) => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ categories, setCategories, companyInfo, setCompanyInfo, language, setLanguage, allData, onImportAllData, onStatusUpdate }) => {
+const Settings: React.FC<SettingsProps> = ({ 
+  team,
+  onUpdateMember,
+  categories, 
+  setCategories, 
+  companyInfo, 
+  setCompanyInfo, 
+  language, 
+  setLanguage, 
+  allData, 
+  onImportAllData, 
+  onStatusUpdate 
+}) => {
     const logoInputRef = useRef<HTMLInputElement>(null);
     const importBackupRef = useRef<HTMLInputElement>(null);
     const [isSaved, setIsSaved] = useState(false);
@@ -45,7 +57,6 @@ const Settings: React.FC<SettingsProps> = ({ categories, setCategories, companyI
             const reader = new FileReader();
             reader.onload = (evt) => {
                 const result = evt.target?.result as string;
-                // Prevenindo crash por tamanho excessivo (quota localStorage)
                 if (result.length > 1000000) {
                     alert("A imagem é muito grande. Por favor, use um arquivo menor que 1MB.");
                     return;
@@ -118,7 +129,6 @@ const Settings: React.FC<SettingsProps> = ({ categories, setCategories, companyI
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                 <div className="lg:col-span-2 space-y-8">
                     
-                    {/* Seleção de Idioma */}
                     <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-6">
                         <div className="flex items-center gap-4 text-slate-950">
                             <Globe className="w-6 h-6 text-indigo-500" />
@@ -138,7 +148,6 @@ const Settings: React.FC<SettingsProps> = ({ categories, setCategories, companyI
                         </div>
                     </div>
 
-                    {/* Branding Corporativo Detalhado */}
                     <div className="bg-white p-12 rounded-[3.5rem] border border-slate-100 shadow-sm space-y-10">
                         <div className="flex items-center gap-4 text-slate-950">
                             <Building2 className="w-6 h-6" />
@@ -162,46 +171,45 @@ const Settings: React.FC<SettingsProps> = ({ categories, setCategories, companyI
                             <div className="space-y-4">
                                 <div className="space-y-1.5">
                                     <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Nome Fantasia (Exibição)</label>
-                                    <input value={companyInfo.name} onChange={(e) => updateField('name', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs uppercase" />
+                                    <input value={companyInfo.name || ''} onChange={(e) => updateField('name', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs uppercase" />
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Tax ID / CNPJ</label>
-                                    <input value={companyInfo.taxId} onChange={(e) => updateField('taxId', e.target.value)} placeholder="00.000.000/0001-00" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs" />
+                                    <input value={companyInfo.taxId || ''} onChange={(e) => updateField('taxId', e.target.value)} placeholder="00.000.000/0001-00" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs" />
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[9px] font-black text-slate-400 uppercase ml-1">E-mail para Documentos</label>
-                                    <input value={companyInfo.email} onChange={(e) => updateField('email', e.target.value)} placeholder="financeiro@empresa.com" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs" />
+                                    <input value={companyInfo.email || ''} onChange={(e) => updateField('email', e.target.value)} placeholder="financeiro@empresa.com" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs" />
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Telefone Oficial</label>
-                                    <input value={companyInfo.phone} onChange={(e) => updateField('phone', e.target.value)} placeholder="(00) 00000-0000" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs" />
+                                    <input value={companyInfo.phone || ''} onChange={(e) => updateField('phone', e.target.value)} placeholder="(00) 00000-0000" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs" />
                                 </div>
                             </div>
                         </div>
 
-                        {/* Endereço Sede */}
                         <div className="space-y-6 pt-8 border-t border-slate-50">
                             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><MapPin className="w-3 h-3"/> Endereço Sede (Cabeçalho de Documentos)</h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="md:col-span-2 space-y-1.5">
                                     <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Logradouro / Número</label>
-                                    <input value={companyInfo.address} onChange={(e) => updateField('address', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs uppercase" />
+                                    <input value={companyInfo.address || ''} onChange={(e) => updateField('address', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs uppercase" />
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[9px] font-black text-slate-400 uppercase ml-1">CEP</label>
-                                    <input value={companyInfo.zipCode} onChange={(e) => updateField('zipCode', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs uppercase" />
+                                    <input value={companyInfo.zipCode || ''} onChange={(e) => updateField('zipCode', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs uppercase" />
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Bairro</label>
-                                    <input value={companyInfo.neighborhood} onChange={(e) => updateField('neighborhood', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs uppercase" />
+                                    <input value={companyInfo.neighborhood || ''} onChange={(e) => updateField('neighborhood', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs uppercase" />
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Cidade</label>
-                                    <input value={companyInfo.city} onChange={(e) => updateField('city', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs uppercase" />
+                                    <input value={companyInfo.city || ''} onChange={(e) => updateField('city', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs uppercase" />
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Estado (UF)</label>
-                                    <input value={companyInfo.state} onChange={(e) => updateField('state', e.target.value)} maxLength={2} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs uppercase" />
+                                    <input value={companyInfo.state || ''} onChange={(e) => updateField('state', e.target.value)} maxLength={2} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-slate-950 font-bold outline-none text-xs uppercase" />
                                 </div>
                             </div>
                         </div>
@@ -209,7 +217,6 @@ const Settings: React.FC<SettingsProps> = ({ categories, setCategories, companyI
                 </div>
 
                 <div className="space-y-8">
-                    {/* Vault & Backup Total */}
                     <div className="bg-slate-950 text-white p-10 rounded-[3.5rem] shadow-2xl space-y-10">
                         <div className="p-4 bg-white/10 rounded-2xl w-fit"><Shield className="w-8 h-8 text-indigo-400" /></div>
                         <div>
