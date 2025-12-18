@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, Radar, PieChart, Pie, Cell } from 'recharts';
-import { Wallet, TrendingDown, Zap, Bell, Sparkles, ArrowRight, Clock, ShieldCheck, Activity, PieChart as PieIcon } from 'lucide-react';
+import { Wallet, TrendingDown, Zap, Bell, Sparkles, ArrowRight, Clock, ShieldCheck, Activity, PieChart as PieIcon, AlertTriangle } from 'lucide-react';
 import { Transaction, ViewState } from '../types';
 import { translations } from '../translations';
 
@@ -16,11 +16,11 @@ const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308'
 
 const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpenChatWithPrompt, language }) => {
   const t = translations[language];
+
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const netIncome = totalIncome - totalExpense;
 
-  // Processamento para Radar e Pie
   const categoryTotals = transactions.reduce((acc: any, tx) => {
     if (tx.type === 'expense') {
         acc[tx.category] = (acc[tx.category] || 0) + tx.amount;
@@ -54,6 +54,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard title={t.income} value={totalIncome} trend="up" trendValue="+12%" icon={Wallet} colorClass="bg-emerald-500" />
         <StatCard title={t.expenses} value={totalExpense} trend="down" trendValue="-4%" icon={TrendingDown} colorClass="bg-rose-500" />
@@ -107,26 +108,26 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
 
         <div className="bg-slate-950 text-white p-8 rounded-[2.5rem] flex flex-col shadow-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
-          <h3 className="text-lg font-black tracking-tight mb-6 flex items-center gap-2 relative z-10">
-              <Bell className="w-5 h-5 text-indigo-400" /> COMANDO MAESTRIA
+          <h3 className="text-lg font-black tracking-tight mb-6 flex items-center gap-2 relative z-10 uppercase italic">
+              <Sparkles className="w-5 h-5 text-brand" /> Hub Estratégico
           </h3>
           <div className="space-y-4 flex-1 relative z-10">
               <button onClick={() => onViewChange?.(ViewState.SCHEDULE)} className="w-full text-left bg-white/5 border border-white/10 p-4 rounded-2xl hover:bg-white/10 transition-colors">
                   <div className="flex items-center gap-2 mb-1">
                       <Clock className="w-4 h-4 text-amber-400" />
-                      <span className="text-[10px] font-black uppercase text-slate-400">Próximos Vencimentos</span>
+                      <span className="text-[10px] font-black uppercase text-slate-400">Fluxo de Vencimentos</span>
                   </div>
-                  <p className="text-sm font-bold">Vencimentos monitorados pela IA.</p>
+                  <p className="text-sm font-bold">Monitorar contas próximas.</p>
               </button>
-              <button onClick={() => onOpenChatWithPrompt?.("Analise meu extrato em busca de furos e anomalias de categoria. Gere uma auditoria de precisão agora.")} className="w-full text-left bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-2xl hover:bg-indigo-500/20 transition-colors">
+              <button onClick={() => onOpenChatWithPrompt?.("Analise meu extrato em busca de furos e anomalias. Gere uma auditoria de precisão agora.")} className="w-full text-left bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-2xl hover:bg-indigo-500/20 transition-colors">
                   <div className="flex items-center gap-2 mb-1">
                       <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                      <span className="text-[10px] font-black uppercase text-slate-400">Auditoria Neural Sênior</span>
+                      <span className="text-[10px] font-black uppercase text-slate-400">Auditoria Sênior</span>
                   </div>
-                  <p className="text-sm font-bold">Localizar furos operacionais agora.</p>
+                  <p className="text-sm font-bold">Detectar riscos operacionais.</p>
               </button>
           </div>
-          <button onClick={() => onViewChange?.(ViewState.REPORTS)} className="mt-8 flex items-center justify-between bg-white text-slate-900 p-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition shadow-xl relative z-10">
+          <button onClick={() => onViewChange?.(ViewState.REPORTS)} className="mt-8 flex items-center justify-between bg-white text-slate-900 p-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-brand hover:text-white transition-all shadow-xl relative z-10">
               {t.ia} <ArrowRight className="w-4 h-4" />
           </button>
         </div>

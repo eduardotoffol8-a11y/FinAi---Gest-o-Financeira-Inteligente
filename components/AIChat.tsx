@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, X, Loader2, Check, FileText, Brain, ListChecks } from 'lucide-react';
+import { Send, Paperclip, X, Loader2, Check, FileText, Brain, ListChecks, Sparkles } from 'lucide-react';
 import { sendMessageToGemini, analyzeDocument, extractFromText } from '../services/geminiService';
 import { ChatMessage, Transaction } from '../types';
 
@@ -16,7 +16,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
     {
       id: 'welcome',
       role: 'model',
-      text: 'Olá! Sou a MaestrIA. Suba um extrato, uma imagem de recibo ou cole os dados bancários para uma análise de precisão.',
+      text: 'MaestrIA Cloud Ativa. Pronto para analisar seus documentos e dar insights estratégicos.',
       timestamp: new Date(),
     },
   ]);
@@ -40,7 +40,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
       items.forEach(item => {
           const draft: Omit<Transaction, 'id'> = {
               date: item.date || new Date().toISOString().split('T')[0],
-              description: item.description || 'Scan IA Multi',
+              description: item.description || 'Scan Neural Cloud',
               category: item.category || (categories[0] || 'Operacional'),
               amount: Math.abs(Number(item.amount)) || 0,
               type: item.amount < 0 || item.type === 'expense' ? 'expense' : 'income',
@@ -54,7 +54,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
           setMessages(prev => [...prev, {
               id: `draft-${Date.now()}-${Math.random()}`,
               role: 'model',
-              text: `Detectei: ${draft.description} - R$ ${draft.amount} (${draft.category})`,
+              text: `Analizado: ${draft.description} - R$ ${draft.amount}`,
               timestamp: new Date(),
               isDraft: true,
               draftData: draft
@@ -91,9 +91,12 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
              processBatch(items);
              setIsLoading(false);
              return;
+         } else if (items.description) {
+             processBatch([items]);
+             setIsLoading(false);
+             return;
          }
-      } else if (currentText.length > 50 && (currentText.includes('Despesa') || currentText.includes('Receita') || currentText.includes('BRL'))) {
-          // Detecta se é um texto de extrato colado
+      } else if (currentText.length > 50) {
           const jsonStr = await extractFromText(currentText, categories);
           const items = JSON.parse(jsonStr);
           if (Array.isArray(items)) {
@@ -103,10 +106,10 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
           }
       }
 
-      const responseText = await sendMessageToGemini(newUserMsg.text, []);
+      const responseText = await sendMessageToGemini(newUserMsg.text);
       setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'model', text: responseText, timestamp: new Date() }]);
     } catch (error) {
-      setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'model', text: 'Chave MaestrIA pendente. Verifique suas configurações.', timestamp: new Date() }]);
+      setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'model', text: 'Desculpe, tive um problema de conexão com o MaestrIA Cloud.', timestamp: new Date() }]);
     } finally {
       setIsLoading(false);
     }
@@ -115,16 +118,16 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-[500px] bg-white shadow-2xl transform transition-transform duration-300 z-[200] flex flex-col">
+    <div className="fixed inset-y-0 right-0 w-full sm:w-[500px] bg-white shadow-2xl transform transition-transform duration-300 z-[200] flex flex-col border-l border-slate-100">
       <div className="h-24 flex items-center justify-between px-8 bg-slate-950 text-white shadow-lg">
         <div className="flex items-center gap-4">
-          <div className="p-2.5 bg-indigo-600 rounded-xl">
-             <Brain className="w-6 h-6 text-white" />
+          <div className="p-2.5 bg-brand rounded-xl">
+             <Sparkles className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="font-black text-xl italic tracking-tight">MaestrIA Neural</h2>
-            <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-400 font-black uppercase tracking-widest">
-                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span> Análise Ativa
+            <h2 className="font-black text-xl italic tracking-tight uppercase">MaestrIA AI</h2>
+            <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-emerald-400 font-black uppercase tracking-widest">
+                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span> Cloud Ativa
             </div>
           </div>
         </div>
@@ -141,7 +144,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
               }`}>
               <div className="whitespace-pre-wrap">{msg.text}</div>
               {msg.isDraft && msg.draftData && (
-                  <div className="mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-5 border-l-4 border-l-indigo-500">
+                  <div className="mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-5 border-l-4 border-l-brand">
                       <div className="space-y-2 mb-4">
                           <div className="flex justify-between text-[10px] font-black uppercase text-slate-400">
                               <span>Valor</span>
@@ -149,7 +152,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
                           </div>
                           <div className="flex justify-between text-[10px] font-black uppercase text-slate-400">
                               <span>Categoria</span>
-                              <span className="text-indigo-600 italic">{msg.draftData.category}</span>
+                              <span className="text-brand italic">{msg.draftData.category}</span>
                           </div>
                       </div>
                       <button onClick={() => { 
@@ -157,7 +160,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
                           onAddTransaction(msg.draftData); 
                           setMessages(p => p.map(m => m.id === msg.id ? {...m, isDraft: false, text: `✓ Lançamento [${msg.draftData?.description}] efetivado.`} : m));
                         }
-                      }} className="w-full bg-indigo-600 text-white text-[10px] font-black py-3 rounded-xl shadow-lg hover:bg-indigo-700 transition-colors uppercase">Confirmar</button>
+                      }} className="w-full bg-slate-950 text-white text-[10px] font-black py-3 rounded-xl shadow-lg hover:bg-brand transition-all uppercase">Confirmar Registro</button>
                   </div>
               )}
             </div>
@@ -171,7 +174,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
           <button onClick={() => {
               const input = document.createElement('input');
               input.type = 'file';
-              input.accept = 'image/*,application/pdf';
+              input.accept = 'image/*';
               input.onchange = (e: any) => {
                   const file = e.target.files[0];
                   if (file) {
@@ -187,22 +190,22 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
                   }
               };
               input.click();
-          }} className="p-2.5 text-slate-400 hover:text-indigo-600"><Paperclip className="w-5 h-5"/></button>
+          }} className="p-2.5 text-slate-400 hover:text-brand transition-colors"><Paperclip className="w-5 h-5"/></button>
           <input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="Cole o extrato ou descreva o gasto..."
-            className="flex-1 bg-transparent focus:outline-none text-sm text-slate-900 font-bold"
+            placeholder="Analise documentos ou peça ajuda..."
+            className="flex-1 bg-transparent outline-none text-sm text-slate-900 font-bold"
           />
-          <button onClick={handleSendMessage} disabled={isLoading} className="p-2.5 bg-slate-950 text-white rounded-xl shadow-lg">
+          <button onClick={handleSendMessage} disabled={isLoading} className="p-2.5 bg-slate-950 text-white rounded-xl shadow-lg hover:bg-brand transition-all">
              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
           </button>
         </div>
         {attachedImage && (
             <div className="mt-4 p-3 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between">
-                <span className="text-[10px] font-black text-indigo-600 uppercase">Documento pronto para análise neural</span>
+                <span className="text-[10px] font-black text-brand uppercase">Imagem anexada para análise</span>
                 <button onClick={() => setAttachedImage(null)}><X className="w-4 h-4 text-rose-500"/></button>
             </div>
         )}

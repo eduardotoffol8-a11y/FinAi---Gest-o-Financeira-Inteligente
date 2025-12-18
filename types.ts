@@ -27,11 +27,16 @@ export interface GeneratedReport {
 export interface Contact {
   id: string;
   name: string;
-  taxId?: string; // CPF/CNPJ
+  company?: string;
+  taxId?: string; 
   type: 'client' | 'supplier' | 'both';
   email?: string;
   phone?: string;
-  address?: string;
+  address?: string; // Logradouro e número
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
   paymentTerms?: string;
   totalTraded: number;
   lastInteraction?: string;
