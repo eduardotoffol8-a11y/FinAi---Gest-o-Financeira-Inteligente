@@ -1,9 +1,9 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, Contact } from "../types";
 
+// ✅ Ajuste: usar import.meta.env para funcionar no Vite/React
 const getAIClient = () => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = import.meta.env.VITE_API_KEY;
   if (!apiKey) throw new Error("Acesso à inteligência não configurado.");
   return new GoogleGenAI({ apiKey });
 };
@@ -74,7 +74,12 @@ export const testConnection = async (): Promise<{ success: boolean; message: str
   }
 };
 
-export const analyzeDocument = async (base64Data: string, mimeType: string, type: "transaction" | "contact", categories?: string[]): Promise<string> => {
+export const analyzeDocument = async (
+  base64Data: string,
+  mimeType: string,
+  type: "transaction" | "contact",
+  categories?: string[]
+): Promise<string> => {
   try {
     const ai = getAIClient();
     const catsString = categories ? categories.join(", ") : "Geral, Operacional";
@@ -100,7 +105,11 @@ export const analyzeDocument = async (base64Data: string, mimeType: string, type
   }
 };
 
-export const extractFromText = async (text: string, categories: string[], type: "transaction" | "contact" = "transaction"): Promise<string> => {
+export const extractFromText = async (
+  text: string,
+  categories: string[],
+  type: "transaction" | "contact" = "transaction"
+): Promise<string> => {
   try {
     const ai = getAIClient();
     const catsString = categories.join(", ");
