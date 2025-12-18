@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, X, Loader2, Check, FileText, Brain, ListChecks, Sparkles } from 'lucide-react';
+import { Send, Paperclip, X, Loader2, Check, FileText, Brain, ListChecks, Sparkles, Cpu } from 'lucide-react';
 import { sendMessageToGemini, analyzeDocument, extractFromText } from '../services/geminiService';
 import { ChatMessage, Transaction } from '../types';
 
@@ -22,6 +22,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const [attachedImage, setAttachedImage] = useState<{ base64: string; url: string; type: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -76,6 +77,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
     setMessages((prev) => [...prev, newUserMsg]);
     setInputValue('');
     setIsLoading(true);
+    setIsThinking(true);
     const currentImage = attachedImage;
     const currentText = inputValue;
     setAttachedImage(null);
@@ -88,24 +90,18 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
          const jsonStr = await analyzeDocument(currentImage.base64.split(',')[1], currentImage.type, 'transaction', categories);
          const cleanJson = jsonStr.replace(/```json|```/g, '').trim();
          const items = JSON.parse(cleanJson);
-         if (Array.isArray(items)) {
-             processBatch(items);
-             setIsLoading(false);
-             return;
-         } else if (items.description) {
-             processBatch([items]);
-             setIsLoading(false);
-             return;
-         }
+         processBatch(Array.isArray(items) ? items : [items]);
+         setIsLoading(false);
+         setIsThinking(false);
+         return;
       } else if (currentText.length > 50) {
           const jsonStr = await extractFromText(currentText, categories);
           const cleanJson = jsonStr.replace(/```json|```/g, '').trim();
           const items = JSON.parse(cleanJson);
-          if (Array.isArray(items)) {
-              processBatch(items);
-              setIsLoading(false);
-              return;
-          }
+          processBatch(Array.isArray(items) ? items : [items]);
+          setIsLoading(false);
+          setIsThinking(false);
+          return;
       }
 
       const responseText = await sendMessageToGemini(newUserMsg.text);
@@ -114,6 +110,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
       setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'model', text: 'O MaestrIA Cloud está offline ou houve erro na autenticação. Verifique sua API_KEY.', timestamp: new Date() }]);
     } finally {
       setIsLoading(false);
+      setIsThinking(false);
     }
   };
 
@@ -168,6 +165,14 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
             </div>
           </div>
         ))}
+        {isThinking && (
+          <div className="flex justify-start">
+            <div className="bg-white border border-slate-100 p-4 rounded-2xl flex items-center gap-3 shadow-md animate-pulse">
+              <Cpu className="w-4 h-4 text-indigo-500 animate-spin" />
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">MaestrIA está pensando...</span>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 

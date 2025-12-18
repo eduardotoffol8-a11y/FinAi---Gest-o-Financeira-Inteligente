@@ -27,27 +27,15 @@ function App() {
   const [initialChatPrompt, setInitialChatPrompt] = useState<string | null>(null);
   const [isAiActive, setIsAiActive] = useState<boolean | null>(null);
   const [isThinking, setIsThinking] = useState(false);
-  
   const [pendingReviewTx, setPendingReviewTx] = useState<Transaction | null>(null);
-
   const [language, setLanguage] = useState<'pt-BR' | 'en-US' | 'es-ES'>(() => (localStorage.getItem('maestria_lang') as any) || 'pt-BR');
+  
   const [companyInfo, setCompanyInfo] = useState(() => {
     const saved = localStorage.getItem(BRAND_STORAGE_KEY);
+    if (!saved) return { name: 'EMPRESA MASTER', logo: null, brandColor: '#6366f1' };
     try { 
-      return saved ? JSON.parse(saved) : { 
-        name: 'EMPRESA MASTER', 
-        logo: null, 
-        taxId: '',
-        email: '',
-        phone: '',
-        address: '',
-        neighborhood: '',
-        city: '',
-        state: '',
-        zipCode: '',
-        brandColor: '#6366f1' 
-      };
-    } catch { 
+      return JSON.parse(saved);
+    } catch (e) { 
       return { name: 'EMPRESA MASTER', logo: null, brandColor: '#6366f1' }; 
     }
   });
@@ -61,7 +49,6 @@ function App() {
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
-  // Lógica de Persistência Automática (AUTOSAVE) com tratamento de erro
   const saveAllData = useCallback(() => {
     if (!isLoaded || !user) return;
     try {
@@ -72,10 +59,7 @@ function App() {
       localStorage.setItem(BRAND_STORAGE_KEY, JSON.stringify(companyInfo));
       localStorage.setItem('maestria_lang', language);
     } catch (err) {
-      console.error("Autosave Error:", err);
-      // Fallback: Tenta salvar sem o logo se o erro for QuotaExceeded
       if (err instanceof Error && err.name === 'QuotaExceededError') {
-          console.warn("Storage quota reached. Attempting recovery without heavy branding assets.");
           const infoWithoutLogo = { ...companyInfo, logo: null };
           localStorage.setItem(BRAND_STORAGE_KEY, JSON.stringify(infoWithoutLogo));
       }
@@ -128,11 +112,12 @@ function App() {
       if (file.name.match(/\.(csv|txt|xlsx|xls)$/i)) {
         reader.onload = async (e) => {
           let content = '';
+          const result = e.target ? e.target.result : '';
           if (file.name.match(/\.(xlsx|xls)$/i)) {
-            const wb = XLSX.read(e.target?.result, { type: 'binary' });
+            const wb = XLSX.read(result, { type: 'binary' });
             content = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
           } else {
-            content = e.target?.result as string;
+            content = result as string;
           }
           const json = await extractFromText(content, categories, type);
           processAIResult(json, type, reviewRequired);
@@ -141,7 +126,8 @@ function App() {
         else reader.readAsText(file);
       } else {
         reader.onload = async (e) => {
-          const base64 = (e.target?.result as string).split(',')[1];
+          const result = e.target ? (e.target.result as string) : '';
+          const base64 = result.split(',')[1];
           const json = await analyzeDocument(base64, file.type, type, categories);
           processAIResult(json, type, reviewRequired);
         };
@@ -162,21 +148,21 @@ function App() {
           const mapped: Transaction[] = items.map((item: any) => {
             const rawAmount = parseFloat(item.amount);
             const isNegative = rawAmount < 0;
-            const itemType = item.type?.toLowerCase();
+            const rawType = item.type ? String(item.type).toLowerCase() : 'expense';
             
             let finalType: 'income' | 'expense' = 'expense';
-            if (itemType === 'income' || itemType?.includes('receita') || itemType?.includes('entrada') || (!isNegative && rawAmount > 0)) {
+            if (rawType.indexOf('income') !== -1 || rawType.indexOf('receita') !== -1 || rawType.indexOf('entrada') !== -1 || (!isNegative && rawAmount > 0)) {
                 finalType = 'income';
             }
-            if (isNegative || itemType === 'expense' || itemType?.includes('despesa') || itemType?.includes('saída') || itemType?.includes('pagamento')) {
+            if (isNegative || rawType.indexOf('expense') !== -1 || rawType.indexOf('despesa') !== -1 || rawType.indexOf('saída') !== -1) {
                 finalType = 'expense';
             }
 
             return {
-                id: Math.random().toString(36).substr(2, 9),
+                id: Math.random().toString(36).substring(2, 11),
                 date: item.date || new Date().toISOString().split('T')[0],
                 description: item.description || 'Lançamento IA',
-                category: categories.includes(item.category) ? item.category : categories[0],
+                category: categories.indexOf(item.category) !== -1 ? item.category : categories[0],
                 amount: Math.abs(rawAmount) || 0,
                 type: finalType,
                 status: 'paid',
@@ -196,15 +182,14 @@ function App() {
           }
       } else {
           const mapped: Contact[] = items.map((item: any) => {
-            // Normalização inteligente de Tipo
             let finalType: 'client' | 'supplier' | 'both' = 'client';
             const rawType = String(item.type || '').toLowerCase();
             
-            if (rawType.includes('fornecedor') || rawType.includes('supplier') || rawType.includes('vendedor')) {
+            if (rawType.indexOf('fornecedor') !== -1 || rawType.indexOf('supplier') !== -1) {
                 finalType = 'supplier';
-            } else if (rawType.includes('cliente') || rawType.includes('client') || rawType.includes('comprador')) {
+            } else if (rawType.indexOf('cliente') !== -1 || rawType.indexOf('client') !== -1) {
                 finalType = 'client';
-            } else if (rawType.includes('hibrido') || rawType.includes('both') || rawType.includes('ambos')) {
+            } else if (rawType.indexOf('hibrido') !== -1 || rawType.indexOf('both') !== -1) {
                 finalType = 'both';
             }
 
@@ -308,7 +293,7 @@ function App() {
                 {view === ViewState.TEAM_CHAT && <CorporateChat currentUser={user} team={team} messages={corporateMessages} onSendMessage={(rid, txt, opt) => setCorporateMessages(prev => [...prev, {id: Date.now().toString(), senderId: user.id, receiverId: rid, text: txt, timestamp: new Date(), ...opt}])} onEditMessage={(id, t) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, text: t} : m))} onDeleteMessage={(id) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, isDeleted: true} : m))} language={language} />}
                 {view === ViewState.SCHEDULE && <Schedule items={schedule} setItems={setSchedule} onAddTransaction={(t) => setTransactions(prev => [{...t, id: Date.now().toString(), status: 'paid', source: 'manual'}, ...prev] as Transaction[])} language={language} />}
                 {view === ViewState.CONTACTS && <Contacts contacts={contacts} companyInfo={companyInfo} onAddContact={(c) => setContacts(p => [c, ...p])} onEditContact={(c) => setContacts(p => p.map(o => o.id === c.id ? c : o))} onDeleteContact={(id) => setContacts(p => p.filter(c => c.id !== id))} onImportContacts={(l) => setContacts(p => [...l, ...p])} onStartScan={(f) => handleGlobalScan(f, 'contact', false)} language={language} />}
-                {view === ViewState.SETTINGS && <Settings team={team} categories={categories} setCategories={setCategories} companyInfo={companyInfo} setCompanyInfo={setCompanyInfo} onUpdateMember={(m) => setTeam(prev => prev.map(o => o.id === m.id ? m : o))} language={language} setLanguage={setLanguage as any} allData={{transactions, contacts, schedule, team, corporateMessages, categories, companyInfo}} onImportAllData={handleImportFullBackup} onStatusUpdate={setIsAiActive} />}
+                {view === ViewState.SETTINGS && <Settings team={team} categories={categories} setCategories={setCategories} companyInfo={companyInfo} setCompanyInfo={setCompanyInfo} language={language} setLanguage={setLanguage as any} allData={{transactions, contacts, schedule, team, corporateMessages, categories, companyInfo}} onImportAllData={handleImportFullBackup} onStatusUpdate={setIsAiActive} />}
                 {view === ViewState.DOCS && <Docs />}
             </div>
         </div>

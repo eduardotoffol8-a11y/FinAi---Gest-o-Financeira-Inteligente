@@ -259,6 +259,55 @@ const Contacts: React.FC<ContactsProps> = ({ contacts, companyInfo, onAddContact
               </div>
           </div>
       )}
+
+      {/* Fix: Modal de Contrato IA adicionado para completar a funcionalidade de geração de contratos */}
+      {isContractModalOpen && (
+          <div className="fixed inset-0 z-[400] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
+              <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-4xl p-10 border border-white/20 animate-in zoom-in-95 max-h-[95vh] overflow-y-auto custom-scrollbar">
+                  <div className="flex justify-between items-center mb-8">
+                      <div>
+                        <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter">Gerador de Contratos IA</h3>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Minuta Jurídica para {contractClient?.name}</p>
+                      </div>
+                      <button onClick={() => { setIsContractModalOpen(false); setGeneratedContract(''); setServiceDetails(''); }} className="p-2.5 hover:bg-slate-100 rounded-full transition-all"><X className="w-5 h-5 text-slate-400"/></button>
+                  </div>
+                  
+                  {!generatedContract ? (
+                    <div className="space-y-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Escopo & Condições Comerciais</label>
+                            <textarea 
+                                value={serviceDetails}
+                                onChange={(e) => setServiceDetails(e.target.value)}
+                                placeholder="Ex: Desenvolvimento de software, suporte mensal, valor de R$ 5.000, prazo de 6 meses..."
+                                className="w-full bg-slate-50 border border-slate-200 p-6 rounded-2xl font-bold outline-none text-sm min-h-[200px] focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-inner"
+                            />
+                        </div>
+                        <button 
+                            onClick={handleGenerateContract}
+                            disabled={isGenerating || !serviceDetails}
+                            className="w-full bg-slate-950 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest hover:bg-indigo-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                            Gerar Contrato com Inteligência Artificial
+                        </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-8 animate-in fade-in">
+                        <div className="bg-slate-50 p-10 rounded-[2.5rem] border border-slate-200 prose max-w-none font-medium text-slate-700 text-sm whitespace-pre-wrap max-h-[400px] overflow-y-auto custom-scrollbar shadow-inner">
+                            {generatedContract}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button onClick={() => setGeneratedContract('')} className="bg-white border-2 border-slate-200 text-slate-900 font-black py-4 rounded-xl uppercase text-[10px] tracking-widest hover:bg-slate-50 transition-all">Refinar Detalhes</button>
+                            <button onClick={downloadContractPDF} className="bg-slate-950 text-white font-black py-4 rounded-xl shadow-lg uppercase text-[10px] tracking-widest hover:bg-indigo-600 transition-all flex items-center justify-center gap-2">
+                                <Download className="w-4 h-4" /> Exportar para PDF
+                            </button>
+                        </div>
+                    </div>
+                  )}
+              </div>
+          </div>
+      )}
     </div>
   );
 };
