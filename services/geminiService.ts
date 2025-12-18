@@ -2,16 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, Contact } from "../types";
 
-// Função utilitária para capturar erros de chave e abrir o seletor se necessário
-const handleAIError = async (error: any) => {
-  console.error("Neural Engine Error:", error);
-  if (error.message && (error.message.includes("Requested entity was not found") || error.message.includes("API_KEY"))) {
-    if (typeof window !== 'undefined' && (window as any).aistudio) {
-      await (window as any).aistudio.openSelectKey();
-    }
-  }
-};
-
 const createAI = () => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) throw new Error("MISSING_KEY");
@@ -70,7 +60,7 @@ export const testConnection = async (): Promise<{ success: boolean; message: str
     });
     return { success: true, message: "OK" };
   } catch (error) {
-    await handleAIError(error);
+    console.error("AI Connection Error:", error);
     return { success: false, message: "OFFLINE" };
   }
 };
@@ -93,7 +83,7 @@ export const analyzeDocument = async (base64Data: string, mimeType: string, type
     });
     return response.text || "[]";
   } catch (error) { 
-    await handleAIError(error);
+    console.error("Analysis Error:", error);
     return "[]"; 
   }
 };
@@ -111,7 +101,7 @@ export const extractFromText = async (text: string, categories: string[], type: 
     });
     return response.text || "[]";
   } catch (error) { 
-    await handleAIError(error);
+    console.error("Text Extraction Error:", error);
     return "[]"; 
   }
 };
@@ -128,7 +118,7 @@ export const sendMessageToGemini = async (message: string): Promise<string> => {
     });
     return response.text || "Sem resposta.";
   } catch (error) { 
-    await handleAIError(error);
+    console.error("Chat Error:", error);
     return "Sistema temporariamente indisponível."; 
   }
 };
@@ -145,7 +135,7 @@ export const generateExecutiveReport = async (transactions: Transaction[], perio
     });
     return response.text || "Erro ao gerar relatório.";
   } catch (error) { 
-    await handleAIError(error);
+    console.error("Report Error:", error);
     return "Erro no motor neural."; 
   }
 };
@@ -162,7 +152,7 @@ export const performAudit = async (transactions: Transaction[]): Promise<string>
     });
     return response.text || "Erro ao realizar auditoria.";
   } catch (error) { 
-    await handleAIError(error);
+    console.error("Audit Error:", error);
     return "Erro no motor neural."; 
   }
 };
@@ -179,7 +169,7 @@ export const getStrategicSuggestions = async (transactions: Transaction[]): Prom
     });
     return response.text || "Erro ao gerar sugestões.";
   } catch (error) { 
-    await handleAIError(error);
+    console.error("Strategy Error:", error);
     return "Erro no motor neural."; 
   }
 };
@@ -198,7 +188,7 @@ export const generateServiceContract = async (companyInfo: any, client: Contact,
     });
     return response.text || "Erro ao gerar minuta do contrato.";
   } catch (error) { 
-    await handleAIError(error);
+    console.error("Contract Error:", error);
     return "Falha na conexão com o motor neural jurídico."; 
   }
 };

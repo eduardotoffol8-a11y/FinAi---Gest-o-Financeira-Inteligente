@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, FileText, Calendar as CalendarIcon, LogOut, Command, MessageSquare, BookOpen, ChevronRight, Zap, Cpu, Loader2, Key, Info, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, FileText, Calendar as CalendarIcon, LogOut, Command, MessageSquare, BookOpen, ChevronRight, Zap, Cpu, Loader2 } from 'lucide-react';
 import { Transaction, ViewState, Contact, ScheduledItem, TeamMember, CorporateMessage } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionList from './components/TransactionList';
@@ -27,7 +27,6 @@ function App() {
   const [initialChatPrompt, setInitialChatPrompt] = useState<string | null>(null);
   const [isAiActive, setIsAiActive] = useState<boolean | null>(null);
   const [isThinking, setIsThinking] = useState(false);
-  const [showAiSetup, setShowAiSetup] = useState(false);
   const [pendingReviewTx, setPendingReviewTx] = useState<Transaction | null>(null);
   const [language, setLanguage] = useState<'pt-BR' | 'en-US' | 'es-ES'>(() => (localStorage.getItem('maestria_lang') as any) || 'pt-BR');
   
@@ -49,30 +48,6 @@ function App() {
   const [corporateMessages, setCorporateMessages] = useState<CorporateMessage[]>([]);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [isChatOpen, setIsChatOpen] = useState(false);
-
-  const checkAIConnection = useCallback(async () => {
-    if (typeof (window as any).aistudio !== 'undefined') {
-      const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-      if (!hasKey) {
-        setIsAiActive(false);
-        return false;
-      }
-    }
-    const res = await testConnection();
-    setIsAiActive(res.success);
-    return res.success;
-  }, []);
-
-  const handleOpenAiKeySelector = async () => {
-    if (typeof (window as any).aistudio !== 'undefined') {
-      await (window as any).aistudio.openSelectKey();
-      // Assume sucesso após abertura para destravar a UI (race condition mitigation)
-      setIsAiActive(true);
-      setShowAiSetup(false);
-      // Re-testa após um breve delay
-      setTimeout(checkAIConnection, 2000);
-    }
-  };
 
   const saveAllData = useCallback(() => {
     if (!isLoaded || !user) return;
@@ -96,7 +71,11 @@ function App() {
   }, [saveAllData]);
 
   useEffect(() => {
-    checkAIConnection();
+    const checkConnection = async () => {
+        const res = await testConnection();
+        setIsAiActive(res.success);
+    };
+    checkConnection();
 
     const savedAuth = localStorage.getItem('maestria_auth');
     if (savedAuth) try { setUser(JSON.parse(savedAuth)); } catch (e) {}
@@ -114,7 +93,7 @@ function App() {
       } catch (e) {}
     }
     setIsLoaded(true);
-  }, [checkAIConnection]);
+  }, []);
 
   const handleImportFullBackup = (data: any) => {
     if (data.transactions) setTransactions(data.transactions);
@@ -127,10 +106,6 @@ function App() {
   };
 
   const handleGlobalScan = async (file: File, type: 'transaction' | 'contact', reviewRequired: boolean = false) => {
-    if (!isAiActive) {
-      setShowAiSetup(true);
-      return;
-    }
     setIsThinking(true);
     const reader = new FileReader();
     try {
@@ -166,8 +141,6 @@ function App() {
   const processAIResult = (json: string, targetType: 'transaction' | 'contact', reviewRequired: boolean) => {
     try {
       const cleanJson = json.replace(/```json|```/g, '').trim();
-      if (cleanJson === "[]" || !cleanJson) return;
-      
       const data = JSON.parse(cleanJson);
       const items = Array.isArray(data) ? data : [data];
 
@@ -260,37 +233,6 @@ function App() {
         </div>
       )}
 
-      {/* Modal de Setup da IA */}
-      {showAiSetup && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-slate-950/80 backdrop-blur-xl p-4">
-            <div className="bg-white rounded-[3.5rem] shadow-2xl w-full max-w-lg p-12 border border-white/20 animate-in zoom-in-95">
-                <div className="flex flex-col items-center text-center">
-                    <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center text-indigo-600 mb-8">
-                        <Cpu className="w-10 h-10 animate-pulse" />
-                    </div>
-                    <h3 className="text-3xl font-black text-slate-950 italic uppercase tracking-tighter mb-4">Ativar Motor Neural</h3>
-                    <p className="text-slate-500 font-medium text-sm leading-relaxed mb-10">
-                        O MaestrIA utiliza modelos de próxima geração (Gemini 3). Para prosseguir, você precisa selecionar uma chave de API vinculada a um projeto Google Cloud pago.
-                    </p>
-                    
-                    <div className="w-full space-y-4 mb-10">
-                        <div className="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl text-left">
-                            <Info className="w-5 h-5 text-indigo-500 mt-1 shrink-0" />
-                            <p className="text-[10px] font-bold text-slate-600 uppercase italic">Acesse ai.google.dev/gemini-api/docs/billing para configurar seu projeto.</p>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col w-full gap-3">
-                        <button onClick={handleOpenAiKeySelector} className="w-full bg-slate-950 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[11px] tracking-widest hover:bg-indigo-600 transition-all flex items-center justify-center gap-2">
-                           <Key className="w-5 h-5" /> Selecionar Chave API
-                        </button>
-                        <button onClick={() => setShowAiSetup(false)} className="w-full py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:text-slate-900 transition-colors">Talvez mais tarde</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-      )}
-
       <aside className="hidden lg:flex w-72 bg-white border-r border-slate-100 flex-col p-6 z-20 shadow-sm">
         <div className="flex items-center gap-3 px-2 mb-10">
           <div className="w-10 h-10 bg-slate-950 rounded-xl flex items-center justify-center text-white shadow-2xl overflow-hidden">
@@ -329,15 +271,15 @@ function App() {
               <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase italic">{view}</h2>
           </div>
           <div className="flex items-center gap-6">
-             <button onClick={() => { checkAIConnection(); if (!isAiActive) setShowAiSetup(true); }} className="flex items-center gap-3 pr-2 group cursor-pointer">
+             <div className="flex items-center gap-3 pr-2">
                 <div className="flex flex-col items-end">
-                    <span className={`text-[7px] font-black uppercase tracking-widest leading-none mb-1 transition-colors ${isThinking ? 'text-indigo-500 animate-pulse' : 'text-slate-400 group-hover:text-slate-900'}`}>
-                      {isThinking ? 'SINCRO NEURAL ATIVA' : isAiActive ? 'CÉREBRO ONLINE' : 'CÉREBRO OFFLINE'}
+                    <span className={`text-[7px] font-black uppercase tracking-widest leading-none mb-1 transition-colors ${isThinking ? 'text-indigo-500 animate-pulse' : 'text-slate-400'}`}>
+                      {isThinking ? 'SINCRO NEURAL ATIVA' : 'CÉREBRO NEURAL'}
                     </span>
                     <div className={`w-3 h-3 rounded-full shadow-sm ring-4 transition-all duration-300 ${isAiActive === null ? 'bg-slate-300 ring-slate-100' : isThinking ? 'bg-indigo-500 scale-125 ring-indigo-50/50' : isAiActive ? 'bg-emerald-500 ring-emerald-50' : 'bg-rose-500 ring-rose-50'}`}></div>
                 </div>
-             </button>
-             <button onClick={() => { if (!isAiActive) setShowAiSetup(true); else setIsChatOpen(true); }} className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-[9px] font-black bg-slate-950 text-white shadow-lg hover:bg-indigo-600 transition-all uppercase tracking-widest">
+             </div>
+             <button onClick={() => setIsChatOpen(true)} className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-[9px] font-black bg-slate-950 text-white shadow-lg hover:bg-indigo-600 transition-all uppercase tracking-widest">
                <Sparkles className="w-4 h-4 text-indigo-400" /> ACESSAR IA
              </button>
           </div>
@@ -345,13 +287,13 @@ function App() {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/50">
             <div className="max-w-[1800px] mx-auto h-full">
-                {view === ViewState.DASHBOARD && <Dashboard transactions={transactions} language={language} onViewChange={setView} aiConnected={!!isAiActive} onOpenChatWithPrompt={p => { if (!isAiActive) setShowAiSetup(true); else { setInitialChatPrompt(p); setIsChatOpen(true); } }} />}
+                {view === ViewState.DASHBOARD && <Dashboard transactions={transactions} language={language} onViewChange={setView} aiConnected={!!isAiActive} onOpenChatWithPrompt={p => { setInitialChatPrompt(p); setIsChatOpen(true); }} />}
                 {view === ViewState.TRANSACTIONS && <TransactionList transactions={transactions} companyInfo={companyInfo} categories={categories} pendingReview={pendingReviewTx} onReviewComplete={() => setPendingReviewTx(null)} onEditTransaction={t => setTransactions(p => p.map(o => o.id === t.id ? t : o))} onDeleteTransaction={id => setTransactions(p => p.filter(t => t.id !== id))} onImportTransactions={l => setTransactions(p => [...l, ...p])} onStartScan={(f, r) => handleGlobalScan(f, 'transaction', r)} language={language} />}
-                {view === ViewState.REPORTS && <Reports transactions={transactions} companyInfo={companyInfo} language={language} onRequiresAiSetup={() => setShowAiSetup(true)} isAiActive={!!isAiActive} />}
+                {view === ViewState.REPORTS && <Reports transactions={transactions} companyInfo={companyInfo} language={language} />}
                 {view === ViewState.TEAM_CHAT && <CorporateChat currentUser={user} team={team} messages={corporateMessages} onSendMessage={(rid, txt, opt) => setCorporateMessages(prev => [...prev, {id: Date.now().toString(), senderId: user.id, receiverId: rid, text: txt, timestamp: new Date(), ...opt}])} onEditMessage={(id, t) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, text: t} : m))} onDeleteMessage={(id) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, isDeleted: true} : m))} language={language} />}
                 {view === ViewState.SCHEDULE && <Schedule items={schedule} setItems={setSchedule} onAddTransaction={(t) => setTransactions(prev => [{...t, id: Date.now().toString(), status: 'paid', source: 'manual'}, ...prev] as Transaction[])} language={language} />}
                 {view === ViewState.CONTACTS && <Contacts contacts={contacts} companyInfo={companyInfo} onAddContact={(c) => setContacts(p => [c, ...p])} onEditContact={(c) => setContacts(p => p.map(o => o.id === c.id ? c : o))} onDeleteContact={(id) => setContacts(p => p.filter(c => c.id !== id))} onImportContacts={(l) => setContacts(p => [...l, ...p])} onStartScan={(f) => handleGlobalScan(f, 'contact', false)} language={language} />}
-                {view === ViewState.SETTINGS && <Settings team={team} categories={categories} setCategories={setCategories} companyInfo={companyInfo} setCompanyInfo={setCompanyInfo} language={language} setLanguage={setLanguage as any} allData={{transactions, contacts, schedule, team, corporateMessages, categories, companyInfo}} onImportAllData={handleImportFullBackup} onStatusUpdate={setIsAiActive} onOpenKeySelector={handleOpenAiKeySelector} />}
+                {view === ViewState.SETTINGS && <Settings team={team} categories={categories} setCategories={setCategories} companyInfo={companyInfo} setCompanyInfo={setCompanyInfo} language={language} setLanguage={setLanguage as any} allData={{transactions, contacts, schedule, team, corporateMessages, categories, companyInfo}} onImportAllData={handleImportFullBackup} onStatusUpdate={setIsAiActive} />}
                 {view === ViewState.DOCS && <Docs />}
             </div>
         </div>
