@@ -125,7 +125,7 @@ function App() {
           description: item.description || 'Lançamento IA',
           category: categories.includes(item.category) ? item.category : categories[0],
           amount: Math.abs(Number(item.amount)) || 0,
-          type: (item.type === 'income' ? 'income' : 'expense'),
+          type: (item.type === 'income' || item.type === 'Receita' ? 'income' : 'expense'),
           status: 'paid',
           source: 'ai',
           supplier: item.supplier || '',
@@ -152,7 +152,7 @@ function App() {
           city: item.city || '',
           state: item.state || '',
           zipCode: item.zipCode || '',
-          type: (item.type === 'supplier' ? 'supplier' : 'client'),
+          type: (item.type === 'supplier' || item.type === 'Fornecedor' ? 'supplier' : 'client'),
           totalTraded: 0,
           source: 'ai'
         }));
@@ -160,7 +160,7 @@ function App() {
         setView(ViewState.CONTACTS);
       }
     } catch (e) { 
-      alert("IA retornou um formato que não conseguimos ler. Verifique o arquivo."); 
+      alert("IA retornou um formato inesperado. Verifique o arquivo."); 
     }
     finally { setIsGlobalProcessing(false); }
   };
