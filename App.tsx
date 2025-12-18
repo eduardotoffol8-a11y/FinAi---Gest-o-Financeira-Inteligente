@@ -14,7 +14,7 @@ import Subscription from './components/Subscription';
 import MobileNav from './components/MobileNav';
 import CorporateChat from './components/CorporateChat';
 import { translations } from './translations';
-import { analyzeDocument, extractFromText, generateServiceContract } from './services/geminiService';
+import { analyzeDocument, extractFromText } from './services/geminiService';
 import * as XLSX from 'xlsx';
 
 const STORAGE_KEY = 'maestria_v11_enterprise_stable';
@@ -101,14 +101,14 @@ function App() {
         reader.readAsDataURL(file);
       }
     } catch (err) {
-      alert("Erro ao conectar com o MaestrIA Cloud. Verifique se o Redeploy na Vercel foi concluído.");
+      alert("Erro ao conectar com o MaestrIA Cloud.");
       setIsGlobalProcessing(false);
     }
   };
 
   const processAIResult = (json: string, targetType: 'transaction' | 'contact', reviewRequired: boolean) => {
     if (json.includes("ERRO_IA") || json === "[]") {
-      alert("A IA não conseguiu processar este arquivo. Verifique sua chave API e se o arquivo está legível.");
+      alert("Falha na extração neural. Verifique a API KEY e tente novamente.");
       setIsGlobalProcessing(false);
       return;
     }
@@ -125,11 +125,11 @@ function App() {
           description: item.description || 'Lançamento IA',
           category: categories.includes(item.category) ? item.category : categories[0],
           amount: Math.abs(Number(item.amount)) || 0,
-          type: (item.type === 'income' ? 'income' : 'expense'),
-          status: 'pending',
+          type: (item.type === 'income' || item.type === 'Receita' ? 'income' : 'expense'),
+          status: 'paid',
           source: 'ai',
           supplier: item.supplier || '',
-          paymentMethod: item.paymentMethod || '',
+          paymentMethod: item.paymentMethod || item.paymentTerms || '',
           costCenter: item.costCenter || ''
         }));
         
@@ -143,16 +143,16 @@ function App() {
         const mapped: Contact[] = items.map((item: any) => ({
           id: (Date.now() + Math.random()).toString(),
           name: item.name || 'Parceiro',
-          company: item.company || '',
-          taxId: item.taxId || '',
-          email: item.email || '',
-          phone: item.phone || '',
+          company: item.company || item.Empresa || '',
+          taxId: item.taxId || item.CNPJ || item.CPF || '',
+          email: item.email || item.Email || '',
+          phone: item.phone || item.Telefone || '',
           address: item.address || '',
           neighborhood: item.neighborhood || '',
           city: item.city || '',
           state: item.state || '',
           zipCode: item.zipCode || '',
-          type: (item.type === 'client' || item.type === 'supplier' || item.type === 'both' ? item.type : 'client'),
+          type: (item.type === 'supplier' || item.type === 'Fornecedor' ? 'supplier' : 'client'),
           totalTraded: 0,
           source: 'ai'
         }));
@@ -160,8 +160,7 @@ function App() {
         setView(ViewState.CONTACTS);
       }
     } catch (e) { 
-      console.error("Erro no parse da IA:", e);
-      alert("Erro ao interpretar dados da IA. Tente novamente."); 
+      alert("Erro ao processar dados da IA."); 
     }
     finally { setIsGlobalProcessing(false); }
   };
