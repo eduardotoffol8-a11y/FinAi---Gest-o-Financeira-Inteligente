@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, FileText, Calendar as CalendarIcon, LogOut, Command, MessageSquare, CheckCircle2, WifiOff, Clock, Loader2, Monitor, FilePlus, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, FileText, Calendar as CalendarIcon, LogOut, Command, MessageSquare, CheckCircle2, WifiOff, Clock, Loader2, Monitor, FilePlus, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Transaction, ViewState, Contact, ScheduledItem, TeamMember, CorporateMessage } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionList from './components/TransactionList';
@@ -27,6 +27,7 @@ function App() {
   const [initialChatPrompt, setInitialChatPrompt] = useState<string | null>(null);
   const [isGlobalProcessing, setIsGlobalProcessing] = useState(false);
   const [pendingReviewTx, setPendingReviewTx] = useState<Transaction | null>(null);
+  const [aiDiagnosticError, setAiDiagnosticError] = useState<string | null>(null);
 
   const [language, setLanguage] = useState<'pt-BR' | 'en-US' | 'es-ES'>(() => (localStorage.getItem('maestria_lang') as any) || 'pt-BR');
   const [companyInfo, setCompanyInfo] = useState(() => {
@@ -75,6 +76,7 @@ function App() {
 
   const handleGlobalScan = async (file: File, type: 'transaction' | 'contact', reviewRequired: boolean = false) => {
     setIsGlobalProcessing(true);
+    setAiDiagnosticError(null);
     const reader = new FileReader();
 
     try {
@@ -101,14 +103,14 @@ function App() {
         reader.readAsDataURL(file);
       }
     } catch (err) {
-      alert("Erro ao conectar com o MaestrIA Cloud.");
+      setAiDiagnosticError("Erro fatal na comunicação com o servidor de IA.");
       setIsGlobalProcessing(false);
     }
   };
 
   const processAIResult = (json: string, targetType: 'transaction' | 'contact', reviewRequired: boolean) => {
-    if (json.startsWith("ERRO_IA")) {
-      alert(json);
+    if (json.includes("ERRO_AMBIENTE") || json.includes("ERRO_GOOGLE") || json.includes("ERRO_PERMISSAO") || json.includes("ERRO_CONFIGURACAO")) {
+      setAiDiagnosticError(json);
       setIsGlobalProcessing(false);
       return;
     }
@@ -160,7 +162,7 @@ function App() {
         setView(ViewState.CONTACTS);
       }
     } catch (e) { 
-      alert("IA retornou um formato inesperado. Verifique o arquivo."); 
+      setAiDiagnosticError("A IA enviou dados em um formato que o sistema não conseguiu ler. Verifique o conteúdo do arquivo."); 
     }
     finally { setIsGlobalProcessing(false); }
   };
@@ -172,6 +174,36 @@ function App() {
 
   return (
     <div className="flex h-screen bg-[#f8fafc] font-sans overflow-hidden">
+      {/* Alerta de Diagnóstico de IA */}
+      {aiDiagnosticError && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+          <div className="bg-white border-2 border-rose-200 rounded-[3rem] p-10 shadow-2xl max-w-2xl w-full animate-in zoom-in-95">
+            <div className="flex gap-6">
+                <div className="p-4 bg-rose-600 rounded-2xl text-white h-fit shadow-xl shadow-rose-200">
+                   <AlertTriangle className="w-8 h-8" />
+                </div>
+                <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <h4 className="font-black text-2xl text-slate-900 uppercase italic tracking-tighter">Diagnostic Center</h4>
+                      <button onClick={() => setAiDiagnosticError(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><LogOut className="w-5 h-5 text-slate-400 rotate-180"/></button>
+                    </div>
+                    <div className="mt-6 p-6 bg-slate-50 rounded-3xl border border-slate-100 font-mono text-xs text-slate-700 whitespace-pre-wrap leading-relaxed shadow-inner">
+                        {aiDiagnosticError}
+                    </div>
+                    <div className="mt-8 flex gap-3">
+                      <button onClick={() => window.location.reload()} className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-slate-950 text-white text-[11px] font-black rounded-2xl uppercase tracking-widest shadow-xl hover:bg-indigo-600 transition-all">
+                        <RefreshCw className="w-4 h-4" /> Tentar Novamente
+                      </button>
+                      <a href="https://vercel.com" target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-white border-2 border-slate-200 text-slate-900 text-[11px] font-black rounded-2xl uppercase tracking-widest hover:bg-slate-50 transition-all">
+                         Ir para o Painel Vercel
+                      </a>
+                    </div>
+                </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <aside className="hidden lg:flex w-72 bg-white border-r border-slate-100 flex-col p-6 z-20 shadow-sm">
         <div className="flex items-center gap-3 px-2 mb-10">
           <div className="w-10 h-10 bg-slate-950 rounded-xl flex items-center justify-center text-white shadow-2xl overflow-hidden ring-2 ring-slate-100 ring-offset-2">
