@@ -1,8 +1,11 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Transaction } from '../types';
-import { Search, Trash2, Edit, X, Plus, Sparkles, FilePlus, CreditCard, Landmark, Banknote, ShieldCheck } from 'lucide-react';
+import { Search, Trash2, Edit, X, Plus, Sparkles, FilePlus, CreditCard, Landmark, Banknote, ShieldCheck, Download, FileText, Share2, Printer, CheckCircle2 } from 'lucide-react';
 import { translations } from '../translations';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -47,6 +50,53 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const exportToExcel = () => {
+    const data = filteredTransactions.map(tx => ({
+      'ID': tx.id,
+      'Data': tx.date,
+      'Descrição': tx.description,
+      'Categoria': tx.category,
+      'Parceiro': tx.supplier || 'N/A',
+      'Tipo': tx.type === 'income' ? 'Entrada' : 'Saída',
+      'Valor': tx.amount,
+      'Meio de Pagamento': tx.paymentMethod || 'N/A',
+      'Status': tx.status
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Lançamentos");
+    XLSX.writeFile(wb, `maestria_lancamentos_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const tableColumn = ["Data", "Descrição", "Parceiro", "Categoria", "Valor"];
+    const tableRows = filteredTransactions.map(t => [
+      new Date(t.date).toLocaleDateString(),
+      t.description,
+      t.supplier || 'N/A',
+      t.category,
+      `R$ ${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+    ]);
+
+    doc.setFontSize(18);
+    doc.text("Relatório de Lançamentos - MaestrIA OS", 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 22);
+
+    (doc as any).autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 30,
+      theme: 'grid',
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 8, cellPadding: 4 },
+      alternateRowStyles: { fillColor: [248, 250, 252] }
+    });
+
+    doc.save(`maestria_lancamentos_${Date.now()}.pdf`);
+  };
+
   const getPaymentIcon = (method?: string) => {
       const m = method?.toLowerCase() || '';
       if (m.includes('pix') || m.includes('ted')) return <Landmark className="w-3.5 h-3.5" />;
@@ -81,7 +131,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
 
   return (
     <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 flex flex-col h-full animate-in fade-in overflow-hidden">
-      <div className="p-6 border-b border-slate-50 flex flex-col lg:flex-row items-center justify-between gap-6">
+      <div className="p-8 border-b border-slate-50 flex flex-col lg:flex-row items-center justify-between gap-6">
         <div>
           <h3 className="text-xl font-black text-slate-900 tracking-tight italic uppercase">{t.transactions}</h3>
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Gestão de Fluxo Corporativo Auditado</p>
@@ -89,8 +139,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         <div className="flex flex-wrap gap-2.5 w-full lg:w-auto">
             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} accept="image/*,application/pdf,.csv,.xlsx" />
             
+            <div className="flex bg-slate-100 p-1 rounded-xl mr-2">
+                <button onClick={exportToExcel} className="p-2 text-slate-500 hover:text-emerald-600 transition-colors" title="Exportar Excel"><FileText className="w-5 h-5"/></button>
+                <button onClick={exportToPDF} className="p-2 text-slate-500 hover:text-rose-600 transition-colors" title="Exportar PDF"><Printer className="w-5 h-5"/></button>
+            </div>
+
             <button onClick={() => { setScanMode('review'); fileInputRef.current?.click(); }} className="flex items-center gap-2 px-5 py-3 rounded-xl text-[9px] font-black bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest">
-              <FilePlus className="w-3.5 h-3.5" /> NFSe / Recibo
+              <FilePlus className="w-3.5 h-3.5" /> NFSe / Extrato Scan
             </button>
 
             <button onClick={() => { setScanMode('auto'); fileInputRef.current?.click(); }} className="flex items-center gap-2 px-5 py-3 rounded-xl text-[9px] font-black bg-white border-2 border-slate-200 text-slate-900 hover:border-brand transition-all uppercase tracking-widest">
@@ -111,7 +166,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         <div className="flex items-center gap-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">
             <span>{filteredTransactions.length} Registros</span>
             <div className="w-px h-4 bg-slate-200"></div>
-            <span className="text-emerald-600">Integridade de 100%</span>
+            <span className="text-emerald-600">Auditado por MaestrIA Cloud</span>
         </div>
       </div>
 
@@ -214,7 +269,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
                                 <input name="paymentMethod" defaultValue={editingTx?.paymentMethod} placeholder="Ex: PIX, Cartão..." className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl font-bold outline-none uppercase text-xs" />
                             </div>
                         </div>
-                        <button type="submit" className="w-full bg-slate-950 text-white font-black py-5 rounded-2xl shadow-xl transition-all uppercase text-[10px] tracking-widest hover:bg-brand">Efetivar no Fluxo de Caixa</button>
+                        <button type="submit" className="w-full bg-slate-950 text-white font-black py-5 rounded-2xl shadow-xl transition-all uppercase text-[10px] tracking-widest hover:bg-brand flex items-center justify-center gap-2">
+                           <CheckCircle2 className="w-5 h-5" /> Efetivar no Fluxo de Caixa
+                        </button>
                   </form>
               </div>
           </div>

@@ -31,8 +31,8 @@ function App() {
   const [language, setLanguage] = useState<'pt-BR' | 'en-US' | 'es-ES'>(() => (localStorage.getItem('maestria_lang') as any) || 'pt-BR');
   const [companyInfo, setCompanyInfo] = useState(() => {
     const saved = localStorage.getItem(BRAND_STORAGE_KEY);
-    try { return saved ? JSON.parse(saved) : { name: 'EMPRESA MASTER', logo: null, brandColor: '#6366f1', trialStartDate: new Date().toISOString(), isSubscribed: true, taxId: '' };
-    } catch { return { name: 'EMPRESA MASTER', logo: null, brandColor: '#6366f1', trialStartDate: new Date().toISOString(), isSubscribed: true, taxId: '' }; }
+    try { return saved ? JSON.parse(saved) : { name: 'EMPRESA MASTER', logo: null, brandColor: '#6366f1', trialStartDate: new Date().toISOString(), isSubscribed: true, taxId: '', address: '', email: '', phone: '', city: '' };
+    } catch { return { name: 'EMPRESA MASTER', logo: null, brandColor: '#6366f1', trialStartDate: new Date().toISOString(), isSubscribed: true, taxId: '', address: '', email: '', phone: '', city: '' }; }
   });
 
   const [view, setView] = useState<ViewState>(() => (localStorage.getItem('maestria_last_view') as any) || ViewState.DASHBOARD);
@@ -68,8 +68,10 @@ function App() {
       const data = { transactions, contacts, schedule, team, corporateMessages, categories };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       localStorage.setItem('maestria_auth', JSON.stringify(user));
+      localStorage.setItem('maestria_last_view', view);
+      localStorage.setItem(BRAND_STORAGE_KEY, JSON.stringify(companyInfo));
     }
-  }, [transactions, contacts, schedule, team, corporateMessages, categories, isLoaded, user]);
+  }, [transactions, contacts, schedule, team, corporateMessages, categories, isLoaded, user, view, companyInfo]);
 
   const handleGlobalScan = async (file: File, type: 'transaction' | 'contact', reviewRequired: boolean = false) => {
     setIsGlobalProcessing(true);
@@ -111,17 +113,18 @@ function App() {
       const items = Array.isArray(data) ? data : [data];
 
       if (targetType === 'transaction') {
-        const mapped = items.map((item: any) => ({
+        const mapped: Transaction[] = items.map((item: any) => ({
           id: Math.random().toString(36).substr(2, 9),
           date: item.date || new Date().toISOString().split('T')[0],
           description: item.description || 'Lançamento IA',
           category: categories.includes(item.category) ? item.category : categories[0],
           amount: Math.abs(Number(item.amount)) || 0,
-          type: item.type === 'income' ? 'income' : 'expense',
+          type: (item.type === 'income' ? 'income' : 'expense') as 'income' | 'expense',
           status: 'pending' as const,
           source: 'ai' as const,
           supplier: item.supplier || '',
-          paymentMethod: item.paymentMethod || ''
+          paymentMethod: item.paymentMethod || '',
+          costCenter: item.costCenter || ''
         }));
         
         if (reviewRequired && mapped.length > 0) {
@@ -131,16 +134,21 @@ function App() {
           setTransactions(prev => [...mapped, ...prev]);
         }
       } else {
-        const mapped = items.map((item: any) => ({
-          id: Date.now().toString() + Math.random(),
+        const mapped: Contact[] = items.map((item: any) => ({
+          id: (Date.now() + Math.random()).toString(),
           name: item.name || 'Parceiro',
           company: item.company || '',
           taxId: item.taxId || '',
           email: item.email || '',
           phone: item.phone || '',
-          type: item.type || 'client',
+          address: item.address || '',
+          neighborhood: item.neighborhood || '',
+          city: item.city || '',
+          state: item.state || '',
+          zipCode: item.zipCode || '',
+          type: (item.type || 'client') as 'client' | 'supplier' | 'both',
           totalTraded: 0,
-          source: 'ai'
+          source: 'ai' as const
         }));
         setContacts(prev => [...mapped, ...prev]);
         setView(ViewState.CONTACTS);
@@ -211,7 +219,7 @@ function App() {
                 {view === ViewState.TRANSACTIONS && <TransactionList transactions={transactions} categories={categories} pendingReview={pendingReviewTx} onReviewComplete={() => setPendingReviewTx(null)} onEditTransaction={t => setTransactions(p => p.map(o => o.id === t.id ? t : o))} onDeleteTransaction={id => setTransactions(p => p.filter(t => t.id !== id))} onImportTransactions={l => setTransactions(p => [...l, ...p])} onStartScan={(f, r) => handleGlobalScan(f, 'transaction', r)} language={language} />}
                 {view === ViewState.REPORTS && <Reports transactions={transactions} language={language} />}
                 {view === ViewState.TEAM_CHAT && <CorporateChat currentUser={user} team={team} messages={corporateMessages} onSendMessage={(rid, txt, opt) => setCorporateMessages(prev => [...prev, {id: Date.now().toString(), senderId: user.id, receiverId: rid, text: txt, timestamp: new Date(), ...opt}])} onEditMessage={(id, t) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, text: t} : m))} onDeleteMessage={(id) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, isDeleted: true} : m))} language={language} />}
-                {view === ViewState.SCHEDULE && <Schedule items={schedule} setItems={setSchedule} onAddTransaction={(t) => setTransactions(prev => [{...t, id: Date.now().toString()}, ...prev])} language={language} />}
+                {view === ViewState.SCHEDULE && <Schedule items={schedule} setItems={setSchedule} onAddTransaction={(t) => setTransactions(prev => [{...t, id: Date.now().toString(), status: 'paid', source: 'manual'}, ...prev])} language={language} />}
                 {view === ViewState.CONTACTS && <Contacts contacts={contacts} companyInfo={companyInfo} onAddContact={(c) => setContacts(p => [c, ...p])} onEditContact={(c) => setContacts(p => p.map(o => o.id === c.id ? c : o))} onDeleteContact={(id) => setContacts(p => p.filter(c => c.id !== id))} onImportContacts={(l) => setContacts(p => [...l, ...p])} onStartScan={(f) => handleGlobalScan(f, 'contact', false)} language={language} />}
                 {view === ViewState.SETTINGS && <Settings team={team} categories={categories} setCategories={setCategories} companyInfo={companyInfo} setCompanyInfo={setCompanyInfo} onUpdateMember={(m) => setTeam(prev => prev.map(o => o.id === m.id ? m : o))} language={language} setLanguage={setLanguage as any} allData={{transactions, contacts, schedule, team, corporateMessages, categories}} />}
             </div>

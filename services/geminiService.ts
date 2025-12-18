@@ -21,7 +21,7 @@ export const analyzeDocument = async (base64Data: string, mimeType: string, type
          - paymentMethod: PIX, Cartão, Boleto ou TED
          Retorne APENAS o JSON ARRAY puro.`
       : `Analise o documento e extraia parceiros comerciais.
-         Extraia: name, company, taxId, email, phone, address, type.
+         Extraia: name, company, taxId, email, phone, address, neighborhood, city, state, zipCode, type.
          Retorne JSON ARRAY.`;
 
     const response = await ai.models.generateContent({
@@ -44,7 +44,7 @@ export const extractFromText = async (text: string, categories: string[], type: 
   try {
     const categoriesList = categories.join(', ');
     const prompt = type === 'transaction'
-      ? `Aja como um Engenheiro de Dados Financeiros. Converta estes dados brutos (CSV/Texto) em uma lista estruturada de lançamentos.
+      ? `Aja como um Engenheiro de Dados Financeiros. Converta estes dados brutos de extrato bancário em uma lista estruturada.
          MAPEAMENTO SEMÂNTICO:
          - Campo 'Memorando' ou 'Histórico' -> description
          - Campo 'Montante' ou 'Valor' -> amount (SEMPRE POSITIVO)
@@ -52,7 +52,7 @@ export const extractFromText = async (text: string, categories: string[], type: 
          - Campo 'Data' -> date (YYYY-MM-DD)
          - Categoria: Escolha a melhor de: [${categoriesList}].
          Retorne JSON ARRAY [{date, description, amount, type, category, supplier, paymentMethod}].`
-      : `Converta este texto/CSV em parceiros comerciais: name, company, email, phone, taxId, address, type. Retorne JSON ARRAY.`;
+      : `Converta este texto/CSV em parceiros comerciais com endereço completo: name, company, email, phone, taxId, address, neighborhood, city, state, zipCode, type. Retorne JSON ARRAY.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -67,8 +67,8 @@ export const extractFromText = async (text: string, categories: string[], type: 
 
 export const generateServiceContract = async (company: any, client: Contact, serviceDetails: string): Promise<string> => {
   if (!process.env.API_KEY) return "Chave API não configurada.";
-  const prompt = `Aja como um Advogado Especialista em Contratos Empresariais (OAB nível Sênior). 
-                  Gere um INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS formal e elegante.
+  const prompt = `Aja como um Advogado Especialista em Direito Civil e Empresarial (Nível Sênior). 
+                  Gere um INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS de altíssima formalidade e elegância.
                   
                   DADOS DA CONTRATADA:
                   Nome: ${company.name}
@@ -80,16 +80,21 @@ export const generateServiceContract = async (company: any, client: Contact, ser
                   Nome/Razão: ${client.name}
                   Empresa: ${client.company || 'N/A'}
                   CPF/CNPJ: ${client.taxId || '[Documento]'}
-                  Endereço: ${client.address || '[Endereço]'}, ${client.city || '[Cidade]'}, ${client.state || ''}
+                  Endereço: ${client.address || '[Endereço]'}, ${client.neighborhood || '[Bairro]'}, ${client.city || '[Cidade]'}, ${client.state || '[UF]'}, CEP: ${client.zipCode || '[CEP]'}
                   
                   ESCOPO DO SERVIÇO: ${serviceDetails}
                   
-                  REQUISITOS FORMAIS:
-                  - Use termos como "Doravante denominada CONTRATADA", "Objeto", "Prazo", "Rescisão", "Foro de Eleição".
-                  - Inclua cláusula de Confidencialidade e LGPD.
-                  - Linguagem culta, profissional e sem erros.
-                  - Adicione um Sumário Executivo de Orientação Jurídica da IA ao final.
+                  ESTRUTURA JURÍDICA:
+                  - Qualificação das partes com rigor formal.
+                  - Cláusula 1ª - Do Objeto e Escopo.
+                  - Cláusula 2ª - Das Obrigações da Contratada.
+                  - Cláusula 3ª - Das Obrigações da Contratante.
+                  - Cláusula 4ª - Do Preço e Condições de Pagamento.
+                  - Cláusula 5ª - Do Prazo e Rescisão.
+                  - Cláusula 6ª - Do Sigilo e LGPD.
+                  - Cláusula 7ª - Do Foro de Eleição.
                   
+                  Utilize linguagem culta, elegante e profissional. Adicione um Sumário Executivo de Orientação Jurídica da IA ao final.
                   Formate em Markdown profissional.`;
 
   const response = await ai.models.generateContent({
