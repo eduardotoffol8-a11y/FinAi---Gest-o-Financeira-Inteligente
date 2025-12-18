@@ -57,11 +57,16 @@ function App() {
       if (selected) {
         const res = await testConnection();
         setIsAiActive(res.success);
+      } else {
+        setIsAiActive(false);
       }
     } else if (process.env.API_KEY) {
       setIsKeySelected(true);
       const res = await testConnection();
       setIsAiActive(res.success);
+    } else {
+      setIsKeySelected(false);
+      setIsAiActive(false);
     }
   }, []);
 
@@ -69,11 +74,8 @@ function App() {
     if (window.aistudio) {
       await window.aistudio.openSelectKey();
       setIsKeySelected(true);
-      // Aguarda injeção da chave e valida
-      setTimeout(async () => {
-        const res = await testConnection();
-        setIsAiActive(res.success);
-      }, 500);
+      const res = await testConnection();
+      setIsAiActive(res.success);
     }
   };
 
@@ -115,10 +117,10 @@ function App() {
   }, [checkKeyStatus]);
 
   const handleGlobalScan = async (file: File, type: 'transaction' | 'contact', reviewRequired: boolean = false) => {
-    if (!isKeySelected) {
-      handleSelectKey();
-      return;
+    if (!isKeySelected || !isAiActive) {
+      await handleSelectKey();
     }
+    
     setIsThinking(true);
     const reader = new FileReader();
     try {
@@ -160,13 +162,16 @@ function App() {
       if (targetType === 'transaction') {
           const mapped: Transaction[] = items.map((item: any) => {
             const rawAmount = parseFloat(item.amount) || 0;
+            let finalType = item.type === 'income' ? 'income' : 'expense';
+            if (rawAmount < 0) finalType = 'expense';
+
             return {
                 id: Math.random().toString(36).substring(2, 11),
                 date: item.date || new Date().toISOString().split('T')[0],
                 description: item.description || 'Lançamento IA',
                 category: categories.indexOf(item.category) !== -1 ? item.category : categories[0],
                 amount: Math.abs(rawAmount),
-                type: (item.type === 'income' || rawAmount > 0) ? 'income' : 'expense',
+                type: finalType as 'income' | 'expense',
                 status: 'paid',
                 source: 'ai',
                 supplier: item.supplier || '',
@@ -221,6 +226,13 @@ function App() {
     } catch (e) {}
   };
 
+  const openAIChat = async () => {
+    if (!isKeySelected) {
+      await handleSelectKey();
+    }
+    setIsChatOpen(true);
+  };
+
   if (!isLoaded) return null;
   if (!user) return <Auth onLogin={(u) => setUser({ id: '1', name: u.name, role: u.role, status: 'online' })} />;
 
@@ -231,27 +243,6 @@ function App() {
       {isThinking && (
         <div className="fixed top-0 left-0 w-full h-[3px] z-[999] overflow-hidden">
           <div className="h-full bg-indigo-500 shadow-[0_0_10px_#6366f1] animate-loading-line"></div>
-        </div>
-      )}
-
-      {!isKeySelected && (
-        <div className="fixed inset-0 z-[500] bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[3rem] p-12 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-500">
-            <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mx-auto mb-8">
-              <Sparkles className="w-8 h-8 animate-pulse" />
-            </div>
-            <h2 className="text-2xl font-black text-slate-900 italic uppercase tracking-tighter mb-4">Ativar Inteligência</h2>
-            <p className="text-slate-500 font-medium text-sm leading-relaxed mb-10">
-              Conecte sua chave de acesso para desbloquear a análise neural financeira e automação de documentos.
-            </p>
-            <button 
-              onClick={handleSelectKey}
-              className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[11px] tracking-widest hover:bg-indigo-600 transition-all flex items-center justify-center gap-2"
-            >
-              <Key className="w-5 h-5" /> Conectar Agora
-            </button>
-            <p className="mt-6 text-[10px] text-slate-400 font-bold uppercase">Consulte os detalhes de faturamento em ai.google.dev</p>
-          </div>
         </div>
       )}
 
@@ -296,12 +287,12 @@ function App() {
              <div className="flex items-center gap-3 pr-2">
                 <div className="flex flex-col items-end">
                     <span className={`text-[7px] font-black uppercase tracking-widest leading-none mb-1 transition-colors ${isThinking ? 'text-indigo-500 animate-pulse' : 'text-slate-400'}`}>
-                      {isThinking ? 'SINCRO NEURAL ATIVA' : isAiActive ? 'ONLINE' : 'OFFLINE'}
+                      {isThinking ? 'SINCRO NEURAL ATIVA' : isAiActive ? 'IA ONLINE' : 'IA OFFLINE'}
                     </span>
                     <div className={`w-2 h-2 rounded-full transition-all duration-300 ${isAiActive === null ? 'bg-slate-300' : isAiActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`}></div>
                 </div>
              </div>
-             <button onClick={() => setIsChatOpen(true)} className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-[9px] font-black bg-slate-900 text-white shadow-lg hover:bg-indigo-600 transition-all uppercase tracking-widest">
+             <button onClick={openAIChat} className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-[9px] font-black bg-slate-900 text-white shadow-lg hover:bg-indigo-600 transition-all uppercase tracking-widest">
                <Sparkles className="w-4 h-4 text-indigo-400" /> ACESSAR IA
              </button>
           </div>
@@ -309,12 +300,12 @@ function App() {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#fcfdfe]">
             <div className="max-w-[1800px] mx-auto h-full">
-                {view === ViewState.DASHBOARD && <Dashboard transactions={transactions} language={language} onViewChange={setView} aiConnected={!!isAiActive} onOpenChatWithPrompt={p => { setInitialChatPrompt(p); setIsChatOpen(true); }} />}
+                {view === ViewState.DASHBOARD && <Dashboard transactions={transactions} language={language} onViewChange={setView} aiConnected={!!isAiActive} onOpenChatWithPrompt={p => { setInitialChatPrompt(p); openAIChat(); }} />}
                 {view === ViewState.TRANSACTIONS && <TransactionList transactions={transactions} companyInfo={companyInfo} categories={categories} pendingReview={pendingReviewTx} onReviewComplete={() => setPendingReviewTx(null)} onEditTransaction={t => setTransactions(p => p.map(o => o.id === t.id ? t : o))} onDeleteTransaction={id => setTransactions(p => p.filter(t => t.id !== id))} onImportTransactions={l => setTransactions(p => [...l, ...p])} onStartScan={(f, r) => handleGlobalScan(f, 'transaction', r)} language={language} />}
                 {view === ViewState.REPORTS && <Reports transactions={transactions} companyInfo={companyInfo} language={language} />}
                 {view === ViewState.TEAM_CHAT && <CorporateChat currentUser={user} team={team} messages={corporateMessages} onSendMessage={(rid, txt, opt) => setCorporateMessages(prev => [...prev, {id: Date.now().toString(), senderId: user.id, receiverId: rid, text: txt, timestamp: new Date(), ...opt}])} onEditMessage={(id, t) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, text: t} : m))} onDeleteMessage={(id) => setCorporateMessages(prev => prev.map(m => m.id === id ? {...m, isDeleted: true} : m))} language={language} />}
                 {view === ViewState.SCHEDULE && <Schedule items={schedule} setItems={setSchedule} onAddTransaction={(t) => setTransactions(prev => [{...t, id: Date.now().toString(), status: 'paid', source: 'manual'}, ...prev] as Transaction[])} language={language} />}
-                {view === ViewState.CONTACTS && <Contacts contacts={contacts} companyInfo={companyInfo} onAddContact={(c) => setContacts(p => [c, ...p])} onEditContact={(c) => setContacts(p => p.map(o => o.id === c.id ? c : o))} onDeleteContact={(id) => setContacts(p => p.filter(c => c.id !== id))} onImportContacts={(l) => setContacts(p => [...l, ...p])} onStartScan={(f) => handleGlobalScan(f, 'contact', false)} language={language} />}
+                {view === ViewState.CONTACTS && <Contacts contacts={contacts} companyInfo={companyInfo} onAddContact={(c) => setContacts(p => [c, ...p])} onEditContact={(c) => setContacts(p => p.map(o => o.id === c.id ? c : o))} onDeleteContact={(id) => setContacts(p => p.filter(c => c.id !== id))} onImportContacts={(l) => setContacts(p => [...l, ...p])} onStartScan={(f) => handleGlobalScan(f, 'contact', true)} language={language} />}
                 {view === ViewState.SETTINGS && <Settings team={team} categories={categories} setCategories={setCategories} companyInfo={companyInfo} setCompanyInfo={setCompanyInfo} language={language} setLanguage={setLanguage as any} allData={{transactions, contacts, schedule, team, corporateMessages, categories, companyInfo}} onImportAllData={handleImportFullBackup} onStatusUpdate={setIsAiActive} />}
                 {view === ViewState.DOCS && <Docs />}
             </div>

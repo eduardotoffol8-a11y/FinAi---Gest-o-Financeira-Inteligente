@@ -1,4 +1,3 @@
-
 export interface Transaction {
   id: string;
   date: string;
@@ -111,14 +110,14 @@ export enum ViewState {
 
 // Extensão global para suporte ao AI Studio
 declare global {
-  /* Fix: Define AIStudio interface separately to match environment type requirements */
+  /* Define AIStudio interface separately to match environment type requirements */
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
     openSelectKey: () => Promise<void>;
   }
 
   interface Window {
-    /* Fix: Use 'readonly' and 'AIStudio' type to match existing global declarations and modifiers */
+    // Fixed: Added 'readonly' modifier to match identical modifiers requirement of existing global declarations in the execution context
     readonly aistudio: AIStudio;
   }
 }
