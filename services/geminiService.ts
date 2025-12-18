@@ -3,10 +3,19 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, Contact } from "../types";
 
 const getAI = () => {
-  if (!process.env.API_KEY || process.env.API_KEY === 'undefined') {
+  const key = process.env.API_KEY;
+  if (!key || key === 'undefined' || key.length < 10) {
     throw new Error("API_KEY_MISSING");
   }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  return new GoogleGenAI({ apiKey: key });
+};
+
+const handleAIError = (error: any): string => {
+  console.error("Gemini API Error:", error);
+  if (error.message?.includes("API_KEY_MISSING")) return "ERRO_IA: Chave API não configurada ou inválida. Faça o Redeploy na Vercel.";
+  if (error.message?.includes("429")) return "ERRO_IA: Limite de requisições atingido (Cota do Google).";
+  if (error.message?.includes("403")) return "ERRO_IA: Acesso negado. Verifique se a API Gemini está ativa no Google Cloud.";
+  return `ERRO_IA: ${error.message || "Falha na comunicação com o cérebro neural."}`;
 };
 
 export const analyzeDocument = async (base64Data: string, mimeType: string, type: 'transaction' | 'contact', categories?: string[]): Promise<string> => {
@@ -39,8 +48,7 @@ export const analyzeDocument = async (base64Data: string, mimeType: string, type
 
     return response.text || "[]";
   } catch (error) {
-    console.error("MaestrIA Cloud Error:", error);
-    return "[]";
+    return handleAIError(error);
   }
 };
 
@@ -66,8 +74,7 @@ export const extractFromText = async (text: string, categories: string[], type: 
     });
     return response.text || "[]";
   } catch (error) {
-    console.error("MaestrIA Cloud Text Error:", error);
-    return "[]";
+    return handleAIError(error);
   }
 };
 
@@ -75,53 +82,19 @@ export const generateServiceContract = async (company: any, client: Contact, ser
   try {
     const ai = getAI();
     const prompt = `Aja como um Advogado Especialista em Direito Civil e Empresarial (Nível Sênior). 
-                    Gere um INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS de altíssima formalidade e elegância.
-                    
-                    DADOS DA CONTRATADA:
-                    Nome: ${company.name}
-                    CNPJ: ${company.taxId || '[Informar CNPJ]'}
-                    Endereço: ${company.address || '[Endereço]'}, ${company.city || '[Cidade]'}
-                    Contato: ${company.email || '[E-mail]'} | ${company.phone || '[Telefone]'}
-                    
-                    DADOS DA CONTRATANTE:
-                    Nome/Razão: ${client.name}
-                    Empresa: ${client.company || 'N/A'}
-                    CPF/CNPJ: ${client.taxId || '[Documento]'}
-                    Endereço: ${client.address || '[Endereço]'}, ${client.neighborhood || '[Bairro]'}, ${client.city || '[Cidade]'}, ${client.state || '[UF]'}, CEP: ${client.zipCode || '[CEP]'}
-                    
-                    ESCOPO DO SERVIÇO: ${serviceDetails}
-                    
-                    ESTRUTURA JURÍDICA:
-                    - Qualificação das partes com rigor formal.
-                    - Cláusula 1ª - Do Objeto e Escopo.
-                    - Cláusula 2ª - Das Obrigações da Contratada.
-                    - Cláusula 3ª - Das Obrigações da Contratante.
-                    - Cláusula 4ª - Do Preço e Condições de Pagamento.
-                    - Cláusula 5ª - Do Prazo e Rescisão.
-                    - Cláusula 6ª - Do Sigilo e LGPD.
-                    - Cláusula 7ª - Do Foro de Eleição.
-                    
-                    Utilize linguagem culta, elegante e profissional. Adicione um Sumário Executivo de Orientação Jurídica da IA ao final.
-                    Formate em Markdown profissional.`;
+                    Gere um INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS formal.
+                    CONTRATADA: ${company.name}, CNPJ: ${company.taxId}.
+                    CONTRATANTE: ${client.name}, CPF/CNPJ: ${client.taxId}.
+                    ESCOPO: ${serviceDetails}`;
 
-    // Tenta o Pro, se falhar cai no Flash
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: prompt,
-        config: { temperature: 0.3 }
-      });
-      return response.text || "Erro ao gerar minuta contratual.";
-    } catch {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: { temperature: 0.3 }
-      });
-      return response.text || "Erro ao gerar minuta contratual.";
-    }
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: { temperature: 0.3 }
+    });
+    return response.text || "Erro ao gerar minuta.";
   } catch (error) {
-    return "IA Indisponível ou API KEY ausente.";
+    return handleAIError(error);
   }
 };
 
@@ -129,25 +102,25 @@ export const generateExecutiveReport = async (transactions: Transaction[], perio
   try {
     const ai = getAI();
     const summary = transactions.slice(0, 50).map(t => `${t.date}: ${t.description} (${t.type}) R$${t.amount}`).join('\n');
-    const prompt = `Gere um Relatório de Performance Executiva para ${period}. Analise tendências de fluxo de caixa baseando-se em:\n${summary}`;
+    const prompt = `Analise financeiramente os seguintes dados e gere um relatório executivo para o período ${period}:\n${summary}`;
     const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
     return response.text || "Não foi possível gerar o relatório.";
   } catch (error) {
-    return "Erro ao gerar relatório neural.";
+    return handleAIError(error);
   }
 };
 
 export const performAudit = async (transactions: Transaction[]): Promise<string> => {
   try {
     const ai = getAI();
-    const summary = transactions.slice(0, 50).map(t => `${t.date}: ${t.description} R$${t.amount} [ID: ${t.id}]`).join('\n');
+    const summary = transactions.slice(0, 50).map(t => `${t.date}: ${t.description} R$${t.amount}`).join('\n');
     const resp = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Aja como um Auditor Fiscal Sênior. Procure por duplicidades e anomalias nestes lançamentos:\n${summary}`,
+      contents: `Procure por duplicidades e anomalias nestes lançamentos:\n${summary}`,
     });
-    return resp.text || "Nenhuma anomalia detectada.";
+    return resp.text || "Auditoria concluída sem anomalias.";
   } catch (error) {
-    return "Erro no motor de auditoria.";
+    return handleAIError(error);
   }
 };
 
@@ -157,11 +130,11 @@ export const getStrategicSuggestions = async (transactions: Transaction[]): Prom
     const summary = transactions.slice(0, 50).map(t => `${t.category}: R$${t.amount}`).join('\n');
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Sugira 3 ações estratégicas de otimização financeira baseadas nestes gastos:\n${summary}`,
+      contents: `Sugira 3 ações estratégicas baseadas nestes gastos:\n${summary}`,
     });
-    return response.text || "Dicas estratégicas indisponíveis no momento.";
+    return response.text || "Dicas estratégicas indisponíveis.";
   } catch (error) {
-    return "Erro estratégica neural.";
+    return handleAIError(error);
   }
 };
 
@@ -175,6 +148,6 @@ export const sendMessageToGemini = async (message: string): Promise<string> => {
     });
     return response.text || "O MaestrIA não pôde processar essa mensagem.";
   } catch (error) {
-    return "O MaestrIA está em modo offline ou sem API KEY configurada.";
+    return handleAIError(error);
   }
 };

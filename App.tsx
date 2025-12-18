@@ -27,7 +27,6 @@ function App() {
   const [initialChatPrompt, setInitialChatPrompt] = useState<string | null>(null);
   const [isGlobalProcessing, setIsGlobalProcessing] = useState(false);
   const [pendingReviewTx, setPendingReviewTx] = useState<Transaction | null>(null);
-  const [apiKeyMissing, setApiKeyMissing] = useState(false);
 
   const [language, setLanguage] = useState<'pt-BR' | 'en-US' | 'es-ES'>(() => (localStorage.getItem('maestria_lang') as any) || 'pt-BR');
   const [companyInfo, setCompanyInfo] = useState(() => {
@@ -46,12 +45,6 @@ function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
-    // Verifica se a API KEY está disponível no ambiente
-    if (!process.env.API_KEY || process.env.API_KEY === 'undefined') {
-      console.warn("MaestrIA: API_KEY não detectada nas variáveis de ambiente.");
-      setApiKeyMissing(true);
-    }
-
     const savedAuth = localStorage.getItem('maestria_auth');
     if (savedAuth) try { setUser(JSON.parse(savedAuth)); } catch (e) {}
 
@@ -81,10 +74,6 @@ function App() {
   }, [transactions, contacts, schedule, team, corporateMessages, categories, isLoaded, user, view, companyInfo]);
 
   const handleGlobalScan = async (file: File, type: 'transaction' | 'contact', reviewRequired: boolean = false) => {
-    if (apiKeyMissing) {
-      alert("A Inteligência Artificial está desativada. Configure a API_KEY na Vercel e faça um novo deploy.");
-      return;
-    }
     setIsGlobalProcessing(true);
     const reader = new FileReader();
 
@@ -112,34 +101,37 @@ function App() {
         reader.readAsDataURL(file);
       }
     } catch (err) {
-      alert("Erro ao conectar com o MaestrIA Cloud.");
+      alert("Erro ao conectar com o MaestrIA Cloud. Verifique se o Redeploy na Vercel foi concluído.");
       setIsGlobalProcessing(false);
     }
   };
 
   const processAIResult = (json: string, targetType: 'transaction' | 'contact', reviewRequired: boolean) => {
+    if (json.includes("ERRO_IA") || json === "[]") {
+      alert("A IA não conseguiu processar este arquivo. Verifique sua chave API e se o arquivo está legível.");
+      setIsGlobalProcessing(false);
+      return;
+    }
+
     try {
       const cleanJson = json.replace(/```json|```/g, '').trim();
       const data = JSON.parse(cleanJson);
       const items = Array.isArray(data) ? data : [data];
 
       if (targetType === 'transaction') {
-        const mapped: Transaction[] = items.map((item: any) => {
-          const tx: Transaction = {
-            id: Math.random().toString(36).substr(2, 9),
-            date: item.date || new Date().toISOString().split('T')[0],
-            description: item.description || 'Lançamento IA',
-            category: categories.includes(item.category) ? item.category : categories[0],
-            amount: Math.abs(Number(item.amount)) || 0,
-            type: (item.type === 'income' ? 'income' : 'expense'),
-            status: 'pending',
-            source: 'ai',
-            supplier: item.supplier || '',
-            paymentMethod: item.paymentMethod || '',
-            costCenter: item.costCenter || ''
-          };
-          return tx;
-        });
+        const mapped: Transaction[] = items.map((item: any) => ({
+          id: Math.random().toString(36).substr(2, 9),
+          date: item.date || new Date().toISOString().split('T')[0],
+          description: item.description || 'Lançamento IA',
+          category: categories.includes(item.category) ? item.category : categories[0],
+          amount: Math.abs(Number(item.amount)) || 0,
+          type: (item.type === 'income' ? 'income' : 'expense'),
+          status: 'pending',
+          source: 'ai',
+          supplier: item.supplier || '',
+          paymentMethod: item.paymentMethod || '',
+          costCenter: item.costCenter || ''
+        }));
         
         if (reviewRequired && mapped.length > 0) {
           setPendingReviewTx(mapped[0]);
@@ -148,31 +140,28 @@ function App() {
           setTransactions(prev => [...mapped, ...prev]);
         }
       } else {
-        const mapped: Contact[] = items.map((item: any) => {
-          const contact: Contact = {
-            id: (Date.now() + Math.random()).toString(),
-            name: item.name || 'Parceiro',
-            company: item.company || '',
-            taxId: item.taxId || '',
-            email: item.email || '',
-            phone: item.phone || '',
-            address: item.address || '',
-            neighborhood: item.neighborhood || '',
-            city: item.city || '',
-            state: item.state || '',
-            zipCode: item.zipCode || '',
-            type: (item.type === 'client' || item.type === 'supplier' || item.type === 'both' ? item.type : 'client'),
-            totalTraded: 0,
-            source: 'ai'
-          };
-          return contact;
-        });
+        const mapped: Contact[] = items.map((item: any) => ({
+          id: (Date.now() + Math.random()).toString(),
+          name: item.name || 'Parceiro',
+          company: item.company || '',
+          taxId: item.taxId || '',
+          email: item.email || '',
+          phone: item.phone || '',
+          address: item.address || '',
+          neighborhood: item.neighborhood || '',
+          city: item.city || '',
+          state: item.state || '',
+          zipCode: item.zipCode || '',
+          type: (item.type === 'client' || item.type === 'supplier' || item.type === 'both' ? item.type : 'client'),
+          totalTraded: 0,
+          source: 'ai'
+        }));
         setContacts(prev => [...mapped, ...prev]);
         setView(ViewState.CONTACTS);
       }
     } catch (e) { 
       console.error("Erro no parse da IA:", e);
-      alert("A IA retornou um formato inesperado. Tente novamente."); 
+      alert("Erro ao interpretar dados da IA. Tente novamente."); 
     }
     finally { setIsGlobalProcessing(false); }
   };
@@ -216,11 +205,6 @@ function App() {
       </aside>
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        {apiKeyMissing && (
-          <div className="bg-rose-600 text-white px-8 py-2 text-[10px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 animate-pulse z-[200]">
-            <AlertTriangle className="w-4 h-4" /> ATENÇÃO: API_KEY NÃO CONFIGURADA. RECURSOS DE IA ESTÃO DESATIVADOS.
-          </div>
-        )}
         <header className="h-20 bg-white/80 backdrop-blur-2xl border-b border-slate-100 flex items-center justify-between px-8 z-[140]">
           <div className="flex items-center gap-5">
               <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase italic">{view}</h2>
