@@ -19,7 +19,6 @@
       .glass-panel { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.5); }
       #root { min-height: 100vh; }
       
-      /* Previne scroll em excesso no mobile */
       html, body {
         position: fixed;
         overflow: hidden;
@@ -27,10 +26,6 @@
         height: 100%;
       }
     </style>
-    
-    <script>
-      window.process = window.process || { env: { API_KEY: "" } };
-    </script>
 
     <script type="importmap">
     {

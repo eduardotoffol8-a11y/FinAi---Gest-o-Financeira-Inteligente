@@ -2,11 +2,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, Contact } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeDocument = async (base64Data: string, mimeType: string, type: 'transaction' | 'contact', categories?: string[]): Promise<string> => {
   if (!process.env.API_KEY) return "[]";
   try {
+    const ai = getAI();
     const categoriesList = categories?.join(', ') || 'Geral, Operacional, Outros';
     
     const prompt = type === 'transaction' 
@@ -42,6 +43,7 @@ export const analyzeDocument = async (base64Data: string, mimeType: string, type
 export const extractFromText = async (text: string, categories: string[], type: 'transaction' | 'contact' = 'transaction'): Promise<string> => {
   if (!process.env.API_KEY) return "[]";
   try {
+    const ai = getAI();
     const categoriesList = categories.join(', ');
     const prompt = type === 'transaction'
       ? `Aja como um Engenheiro de Dados Financeiros. Converta estes dados brutos de extrato bancário em uma lista estruturada.
@@ -67,6 +69,7 @@ export const extractFromText = async (text: string, categories: string[], type: 
 
 export const generateServiceContract = async (company: any, client: Contact, serviceDetails: string): Promise<string> => {
   if (!process.env.API_KEY) return "Chave API não configurada.";
+  const ai = getAI();
   const prompt = `Aja como um Advogado Especialista em Direito Civil e Empresarial (Nível Sênior). 
                   Gere um INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS de altíssima formalidade e elegância.
                   
@@ -107,6 +110,7 @@ export const generateServiceContract = async (company: any, client: Contact, ser
 
 export const generateExecutiveReport = async (transactions: Transaction[], period: string): Promise<string> => {
   if (!process.env.API_KEY) return "IA indisponível.";
+  const ai = getAI();
   const summary = transactions.slice(0, 50).map(t => `${t.date}: ${t.description} (${t.type}) R$${t.amount}`).join('\n');
   const prompt = `Gere um Relatório de Performance Executiva para ${period}. Analise tendências de fluxo de caixa baseando-se em:\n${summary}`;
   const response = await ai.models.generateContent({ model: 'gemini-3-pro-preview', contents: prompt });
@@ -115,6 +119,7 @@ export const generateExecutiveReport = async (transactions: Transaction[], perio
 
 export const performAudit = async (transactions: Transaction[]): Promise<string> => {
   if (!process.env.API_KEY) return "IA indisponível.";
+  const ai = getAI();
   const summary = transactions.slice(0, 50).map(t => `${t.date}: ${t.description} R$${t.amount} [ID: ${t.id}]`).join('\n');
   const resp = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
@@ -125,6 +130,7 @@ export const performAudit = async (transactions: Transaction[]): Promise<string>
 
 export const getStrategicSuggestions = async (transactions: Transaction[]): Promise<string> => {
   if (!process.env.API_KEY) return "IA indisponível.";
+  const ai = getAI();
   const summary = transactions.slice(0, 50).map(t => `${t.category}: R$${t.amount}`).join('\n');
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
@@ -135,6 +141,7 @@ export const getStrategicSuggestions = async (transactions: Transaction[]): Prom
 
 export const sendMessageToGemini = async (message: string): Promise<string> => {
   if (!process.env.API_KEY) return "O MaestrIA está em modo offline. Configure sua API KEY para habilitar a inteligência.";
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: message,
