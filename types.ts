@@ -32,7 +32,7 @@ export interface Contact {
   type: 'client' | 'supplier' | 'both';
   email?: string;
   phone?: string;
-  address?: string; // Logradouro e número
+  address?: string;
   neighborhood?: string;
   city?: string;
   state?: string;
@@ -106,5 +106,5 @@ export enum ViewState {
   CONTACTS = 'PARCEIROS',
   TEAM_CHAT = 'CHAT_EQUIPE',
   SETTINGS = 'CONFIGURAÇÕES',
-  LANDING = 'APRESENTAÇÃO'
+  DOCS = 'MANUAL_IA'
 }

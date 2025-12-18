@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, Radar, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
-import { Wallet, TrendingDown, Zap, Sparkles, ArrowRight, Clock, ShieldCheck, Activity, PieChart as PieIcon, Calendar as CalendarIcon, ArrowUpRight, ArrowDownRight, Filter, ChevronDown } from 'lucide-react';
+import { Wallet, TrendingDown, Zap, Sparkles, ArrowRight, Clock, ShieldCheck, Activity, PieChart as PieIcon, Calendar as CalendarIcon, ArrowUpRight, ArrowDownRight, Filter, ChevronDown, Cpu, Globe } from 'lucide-react';
 import { Transaction, ViewState } from '../types';
 import { translations } from '../translations';
 
@@ -10,19 +10,15 @@ interface DashboardProps {
   onViewChange?: (view: ViewState) => void;
   onOpenChatWithPrompt?: (prompt: string) => void;
   language: 'pt-BR' | 'en-US' | 'es-ES';
+  aiConnected?: boolean;
 }
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#06b6d4'];
 
-const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpenChatWithPrompt, language }) => {
+const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, language, aiConnected = true }) => {
   const t = translations[language];
   const [period, setPeriod] = useState<'all' | '7d' | '30d' | 'month'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-
-  const categories = useMemo(() => {
-    const cats = new Set(transactions.map(tx => tx.category));
-    return Array.from(cats).sort();
-  }, [transactions]);
 
   const filteredTransactions = useMemo(() => {
     const now = new Date();
@@ -83,12 +79,11 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
   );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-32">
-      
+    <div className="space-y-8 animate-in fade-in duration-700 pb-32">
       <div className="flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
           <h2 className="text-3xl font-black text-slate-900 italic tracking-tighter uppercase">Visão Panorâmica</h2>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">Análise de Performance e Liquidez</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">Performance Financeira Consolidada</p>
         </div>
         <div className="flex flex-wrap gap-4 items-center">
             <div className="flex gap-2 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm">
@@ -107,34 +102,22 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
                 </button>
               ))}
             </div>
-
-            <div className="relative">
-              <select 
-                value={selectedCategory} 
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="appearance-none bg-white border border-slate-200 px-6 py-3.5 pr-12 rounded-2xl text-[10px] font-black uppercase tracking-widest outline-none shadow-sm focus:ring-4 focus:ring-indigo-500/5 transition-all"
-              >
-                <option value="all">Todas Categorias</option>
-                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
-              <ChevronDown className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <StatCard title={t.income} value={totalIncome} trend="up" trendValue="+12.4%" icon={Wallet} colorClass="bg-emerald-500" />
-        <StatCard title={t.expenses} value={totalExpense} trend="down" trendValue="-3.2%" icon={TrendingDown} colorClass="bg-rose-500" />
-        <StatCard title={t.balance} value={netIncome} trend={netIncome >= 0 ? "up" : "down"} trendValue={netIncome >= 0 ? "Positivo" : "Alerta"} icon={Zap} colorClass="bg-indigo-500" />
+        <StatCard title={t.income} value={totalIncome} trend="up" trendValue="+12.4%" icon={Wallet} colorClass="bg-emerald-500" viewTarget={ViewState.TRANSACTIONS} />
+        <StatCard title={t.expenses} value={totalExpense} trend="down" trendValue="-3.2%" icon={TrendingDown} colorClass="bg-rose-500" viewTarget={ViewState.TRANSACTIONS} />
+        <StatCard title={t.balance} value={netIncome} trend={netIncome >= 0 ? "up" : "down"} trendValue={netIncome >= 0 ? "Positivo" : "Alerta"} icon={Zap} colorClass="bg-indigo-500" viewTarget={ViewState.TRANSACTIONS} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-sm relative group overflow-hidden">
             <div className="flex items-center justify-between mb-10">
               <h3 className="text-xl font-black text-slate-950 italic tracking-tighter flex items-center gap-3 uppercase">
-                  <Activity className="w-6 h-6 text-indigo-500"/> Gastos por Categoria
+                  <Activity className="w-6 h-6 text-indigo-500"/> Fluxo por Categoria
               </h3>
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Top {barData.length} Áreas de Custo</div>
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Top {barData.length} Áreas</div>
             </div>
             <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
@@ -154,7 +137,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
 
         <div className="bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-sm flex flex-col items-center group">
             <h3 className="text-xl font-black text-slate-950 italic tracking-tighter mb-10 self-start flex items-center gap-3 uppercase">
-                <PieIcon className="w-6 h-6 text-purple-500"/> Composição do Mês
+                <PieIcon className="w-6 h-6 text-purple-500"/> Composição de Custos
             </h3>
             <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -178,45 +161,6 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, onViewChange, onOpe
                    </div>
                  </div>
                ))}
-            </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-slate-950 text-white p-10 rounded-[3.5rem] shadow-2xl relative overflow-hidden group">
-          <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-brand opacity-10 rounded-full blur-3xl"></div>
-          <div className="flex items-center gap-4 mb-8">
-            <div className="p-3 bg-white/10 rounded-2xl"><Sparkles className="w-6 h-6 text-brand"/></div>
-            <div>
-              <h4 className="font-black text-lg uppercase italic tracking-tighter">Sinergia Estratégica</h4>
-              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Geração de Insights Neurais</p>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <button onClick={() => onOpenChatWithPrompt?.(`Analise as categorias de maior gasto no período ${period} e sugira cortes baseados em eficiência operacional.`)} className="w-full text-left bg-white/5 border border-white/10 p-5 rounded-[2rem] hover:bg-white/10 transition-all flex items-center justify-between group/btn">
-              <div>
-                <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Análise de Eficiência</p>
-                <p className="text-sm font-bold">Onde posso economizar mais?</p>
-              </div>
-              <ArrowRight className="w-5 h-5 text-slate-600 group-hover/btn:text-white group-hover/btn:translate-x-1 transition-all" />
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center gap-4 mb-6">
-                <div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600"><ShieldCheck className="w-6 h-6"/></div>
-                <div>
-                  <h4 className="font-black text-lg uppercase italic tracking-tighter">Saúde do Caixa</h4>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Auditado pelo MaestrIA Cloud</p>
-                </div>
-            </div>
-            <div className="flex items-end justify-between">
-                <div className="space-y-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase">Projeção Próximo Mês</p>
-                    <p className="text-3xl font-black text-slate-900 tracking-tighter">R$ {(netIncome * 1.05).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                </div>
-                <div className="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase">Seguro</div>
             </div>
         </div>
       </div>

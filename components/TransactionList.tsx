@@ -17,9 +17,10 @@ interface TransactionListProps {
   onImportTransactions: (list: Transaction[]) => void;
   onStartScan?: (file: File, reviewRequired: boolean) => void;
   language: 'pt-BR' | 'en-US' | 'es-ES';
+  companyInfo?: any;
 }
 
-const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, pendingReview, onReviewComplete, onEditTransaction, onDeleteTransaction, onImportTransactions, onStartScan, language }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, pendingReview, onReviewComplete, onEditTransaction, onDeleteTransaction, onImportTransactions, onStartScan, language, companyInfo }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -50,6 +51,71 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const dateStr = new Date().toLocaleString(language);
+
+    // Header Design
+    doc.setFillColor(15, 23, 42); // Slate 900
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text(companyInfo?.name || "MAESTRIA ENTERPRISE", 15, 20);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`RELATÓRIO DE LANÇAMENTOS FINANCEIROS`, 15, 30);
+    doc.text(dateStr, 195, 30, { align: 'right' });
+
+    // Body
+    const tableColumn = ["Data", "Descrição", "Parceiro", "Categoria", "Valor"];
+    const tableRows = filteredTransactions.map(tx => [
+      new Date(tx.date).toLocaleDateString(language),
+      tx.description.toUpperCase(),
+      (tx.supplier || 'N/A').toUpperCase(),
+      tx.category.toUpperCase(),
+      `${tx.type === 'expense' ? '-' : ''} R$ ${tx.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+    ]);
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 50,
+      theme: 'striped',
+      headStyles: { 
+        fillColor: [79, 70, 229], // Indigo 600
+        textColor: [255, 255, 255],
+        fontSize: 10,
+        fontStyle: 'bold',
+        cellPadding: 5
+      },
+      styles: { 
+        fontSize: 9,
+        font: 'helvetica',
+        cellPadding: 4,
+        lineColor: [241, 245, 249],
+        lineWidth: 0.1
+      },
+      columnStyles: {
+        4: { fontStyle: 'bold', halign: 'right' }
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252]
+      },
+      didDrawPage: (data) => {
+        // Footer
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`${t.report_generated_by} MaestrIA Intelligence OS`, 15, 285);
+        doc.text(`${t.page} ${data.pageNumber}`, 195, 285, { align: 'right' });
+      }
+    });
+
+    doc.save(`Relatorio_Financeiro_${Date.now()}.pdf`);
+  };
+
   const exportToExcel = () => {
     const data = filteredTransactions.map(tx => ({
       'ID': tx.id,
@@ -59,42 +125,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
       'Parceiro': tx.supplier || 'N/A',
       'Tipo': tx.type === 'income' ? 'Entrada' : 'Saída',
       'Valor': tx.amount,
-      'Meio de Pagamento': tx.paymentMethod || 'N/A',
       'Status': tx.status
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Lançamentos");
-    XLSX.writeFile(wb, `maestria_lancamentos_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
-
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    const tableColumn = ["Data", "Descrição", "Parceiro", "Categoria", "Valor"];
-    const tableRows = filteredTransactions.map(t => [
-      new Date(t.date).toLocaleDateString(),
-      t.description,
-      t.supplier || 'N/A',
-      t.category,
-      `R$ ${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-    ]);
-
-    doc.setFontSize(18);
-    doc.text("Relatório de Lançamentos - MaestrIA OS", 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 22);
-
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: 30,
-      theme: 'grid',
-      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
-      styles: { fontSize: 8, cellPadding: 4 },
-      alternateRowStyles: { fillColor: [248, 250, 252] }
-    });
-
-    doc.save(`maestria_lancamentos_${Date.now()}.pdf`);
+    XLSX.writeFile(wb, `maestria_export_${Date.now()}.xlsx`);
   };
 
   const getPaymentIcon = (method?: string) => {
@@ -161,7 +197,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
       <div className="px-6 py-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
         <div className="relative w-full max-w-sm">
             <Search className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"/>
-            <input type="text" placeholder="Filtrar por descrição, parceiro ou categoria..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase outline-none focus:ring-4 focus:ring-brand/5 transition-all shadow-sm" />
+            <input type="text" placeholder={t.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase outline-none focus:ring-4 focus:ring-brand/5 transition-all shadow-sm" />
         </div>
         <div className="flex items-center gap-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">
             <span>{filteredTransactions.length} Registros</span>
@@ -186,7 +222,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
             {filteredTransactions.map(tx => (
               <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors group">
                 <td className="px-8 py-5">
-                    <p className="font-black text-slate-900 text-[11px]">{new Date(tx.date).toLocaleDateString()}</p>
+                    <p className="font-black text-slate-900 text-[11px]">{new Date(tx.date).toLocaleDateString(language)}</p>
                     {tx.source === 'ai' ? (
                         <div className="flex items-center gap-1 mt-1">
                             <ShieldCheck className="w-3 h-3 text-emerald-500" />

@@ -9,9 +9,10 @@ import { translations } from '../translations';
 interface ReportsProps {
   transactions: Transaction[];
   language: 'pt-BR' | 'en-US' | 'es-ES';
+  companyInfo?: any;
 }
 
-const Reports: React.FC<ReportsProps> = ({ transactions, language }) => {
+const Reports: React.FC<ReportsProps> = ({ transactions, language, companyInfo }) => {
   const t = translations[language];
   const [reports, setReports] = useState<GeneratedReport[]>(() => {
     const saved = localStorage.getItem('maestria_reports_library_v2');
@@ -34,14 +35,14 @@ const Reports: React.FC<ReportsProps> = ({ transactions, language }) => {
         const date = new Date().toLocaleDateString(language);
         
         if (type === 'executive') {
-            result = await generateExecutiveReport(transactions, 'Análise de Ciclo Atual');
-            title = `EXECUTIVE DRE - ${date}`;
+            result = await generateExecutiveReport(transactions, 'Ciclo Corporativo');
+            title = `DRE EXECUTIVO - ${date}`;
         } else if (type === 'audit') {
             result = await performAudit(transactions);
-            title = `AUDIT REPORT - ${date}`;
+            title = `AUDITORIA NEURAL - ${date}`;
         } else {
             result = await getStrategicSuggestions(transactions);
-            title = `PROFIT PLAN - ${date}`;
+            title = `PLANO DE LUCRO - ${date}`;
         }
 
         const newReport: GeneratedReport = {
@@ -57,7 +58,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, language }) => {
         setActiveReport(newReport);
         setEditContent(result);
     } catch (err) {
-        alert("Erro na consulta neural. Verifique sua chave API.");
+        alert("Erro na consulta neural.");
     } finally {
         setLoading(false);
     }
@@ -65,11 +66,46 @@ const Reports: React.FC<ReportsProps> = ({ transactions, language }) => {
 
   const handleExportPDF = (report: GeneratedReport) => {
     const doc = new jsPDF();
-    doc.setFontSize(10);
+    const dateStr = new Date().toLocaleString(language);
+
+    // Modern Header
+    doc.setFillColor(30, 41, 59); // Slate 800
+    doc.rect(0, 0, 210, 35, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text(companyInfo?.name || "MAESTRIA ENTERPRISE", 15, 18);
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(report.title, 15, 27);
+    doc.text(`AUDIT ID: ${report.id}`, 195, 27, { align: 'right' });
+
+    // Report Content
+    doc.setTextColor(51, 65, 85); // Slate 700
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    
     const splitText = doc.splitTextToSize(report.content, 180);
-    doc.text(report.title, 14, 20);
-    doc.text(splitText, 14, 35);
-    doc.save(`${report.title.replace(/\s+/g, '_')}.pdf`);
+    doc.text(splitText, 15, 50);
+
+    // Watermark/Confidential
+    doc.setFontSize(8);
+    doc.setTextColor(226, 232, 240); // Slate 200
+    doc.text(t.confidential, 105, 150, { align: 'center', angle: 45 });
+
+    // Footer
+    const pageCount = doc.getNumberOfPages();
+    for(let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`${t.report_generated_by} MaestrIA Cloud Analysis - ${dateStr}`, 15, 285);
+        doc.text(`${t.page} ${i} / ${pageCount}`, 195, 285, { align: 'right' });
+    }
+
+    doc.save(`Analise_${report.type}_${Date.now()}.pdf`);
   };
 
   if (activeReport) {
@@ -80,17 +116,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, language }) => {
                     <ChevronRight className="w-4 h-4 rotate-180" /> Voltar à Biblioteca
                 </button>
                 <div className="flex gap-3">
-                    {isEditing ? (
-                        <button onClick={() => {
-                          const updated = { ...activeReport, content: editContent };
-                          setReports(prev => prev.map(r => r.id === activeReport.id ? updated : r));
-                          setActiveReport(updated);
-                          setIsEditing(false);
-                        }} className="px-8 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest"><Save className="w-4 h-4 mr-2 inline"/> Salvar</button>
-                    ) : (
-                        <button onClick={() => setIsEditing(true)} className="px-8 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest">Editar Parecer</button>
-                    )}
-                    <button onClick={() => handleExportPDF(activeReport)} className="px-8 py-3 bg-white border border-slate-200 text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm">Baixar PDF</button>
+                    <button onClick={() => handleExportPDF(activeReport)} className="px-8 py-3 bg-white border border-slate-200 text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm">Baixar PDF Executivo</button>
                 </div>
             </div>
 
@@ -101,18 +127,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, language }) => {
                         <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter mt-1">{activeReport.title}</h3>
                     </div>
                     <div className="p-10 md:p-16">
-                        {isEditing ? (
-                            <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} className="w-full min-h-[600px] p-8 bg-slate-50 rounded-3xl border border-slate-200 font-mono text-sm leading-relaxed outline-none" />
-                        ) : (
-                            <div className="prose max-w-none whitespace-pre-wrap font-medium text-slate-700 leading-relaxed text-lg">{activeReport.content}</div>
-                        )}
-                    </div>
-                </div>
-                <div className="space-y-6">
-                    <div className="bg-slate-950 text-white p-8 rounded-[2.5rem] shadow-xl">
-                        <ShieldCheck className="w-8 h-8 text-indigo-400 mb-6" />
-                        <h4 className="font-black uppercase text-xs italic mb-2 tracking-tighter">Certificado Digital</h4>
-                        <p className="text-[10px] text-slate-400 leading-relaxed font-bold">Este dossiê foi gerado analisando {transactions.length} transações ativas no banco de dados corporativo.</p>
+                        <div className="prose max-w-none whitespace-pre-wrap font-medium text-slate-700 leading-relaxed text-lg">{activeReport.content}</div>
                     </div>
                 </div>
             </div>
@@ -127,35 +142,24 @@ const Reports: React.FC<ReportsProps> = ({ transactions, language }) => {
           <h2 className="text-4xl font-black text-slate-900 italic tracking-tighter uppercase">{t.ia}</h2>
           <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-1">Biblioteca de Dossiês e Auditorias Neurais</p>
         </div>
-        <div className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm">
-            <BrainCircuit className="w-5 h-5 text-brand animate-pulse" />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Motor Neural Online</span>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <button onClick={() => runAnalysis('executive')} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-2xl transition-all text-left group hover:-translate-y-2">
               <div className="p-5 bg-slate-50 text-slate-950 rounded-[1.5rem] w-fit mb-8 group-hover:bg-brand group-hover:text-white transition-all duration-500"><TrendingUp className="w-8 h-8"/></div>
               <h4 className="font-black text-slate-950 uppercase italic text-lg mb-3 tracking-tighter">Raio-X Executivo</h4>
-              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">DRE Neural e análise de performance global.</p>
           </button>
           <button onClick={() => runAnalysis('audit')} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-2xl transition-all text-left group hover:-translate-y-2">
               <div className="p-5 bg-slate-50 text-slate-950 rounded-[1.5rem] w-fit mb-8 group-hover:bg-rose-600 group-hover:text-white transition-all duration-500"><ShieldAlert className="w-8 h-8"/></div>
               <h4 className="font-black text-slate-950 uppercase italic text-lg mb-3 tracking-tighter">Auditoria de Riscos</h4>
-              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">Identificação de anomalias e erros fiscais.</p>
           </button>
           <button onClick={() => runAnalysis('strategic')} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-2xl transition-all text-left group hover:-translate-y-2">
               <div className="p-5 bg-slate-50 text-slate-950 rounded-[1.5rem] w-fit mb-8 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-500"><Target className="w-8 h-8"/></div>
               <h4 className="font-black text-slate-950 uppercase italic text-lg mb-3 tracking-tighter">Alavancagem de Lucro</h4>
-              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">Planos proativos para redução de custos e margem.</p>
           </button>
       </div>
 
       <div className="bg-white rounded-[3.5rem] border border-slate-100 shadow-xl overflow-hidden">
-          <div className="px-10 py-8 bg-slate-50/50 border-b border-slate-50 flex items-center justify-between">
-              <h4 className="font-black text-slate-900 uppercase italic tracking-tighter text-sm">Biblioteca de Dossiês</h4>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{reports.length} Arquivos</span>
-          </div>
           {loading ? (
               <div className="py-40 flex flex-col items-center justify-center gap-8">
                   <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
@@ -182,9 +186,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, language }) => {
                   ))}
               </div>
           ) : (
-              <div className="py-40 text-center flex flex-col items-center">
-                <Cpu className="w-12 h-12 text-slate-200 mb-6"/>
-                <p className="font-black uppercase text-[10px] text-slate-300 tracking-[0.3em]">Nenhum dossiê gerado ainda</p>
+              <div className="py-40 text-center">
+                <p className="font-black uppercase text-[10px] text-slate-300 tracking-[0.3em]">Nenhum dossiê gerado</p>
               </div>
           )}
       </div>

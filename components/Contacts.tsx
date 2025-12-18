@@ -1,7 +1,7 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Contact } from '../types';
-import { Trash2, Edit, Plus, X, Search, Sparkles, Loader2, Mail, Phone, Building2, Upload, FileText, Download, ShieldCheck, MapPin } from 'lucide-react';
+import { Trash2, Edit, Plus, X, Search, Sparkles, Loader2, Mail, Phone, Building2, Upload, FileText, Download, ShieldCheck, MapPin, CheckCircle2 } from 'lucide-react';
 import { translations } from '../translations';
 import { generateServiceContract } from '../services/geminiService';
 import { jsPDF } from 'jspdf';
@@ -64,8 +64,11 @@ const Contacts: React.FC<ContactsProps> = ({ contacts, companyInfo, onAddContact
           totalTraded: editingContact?.totalTraded || 0,
           source: editingContact?.source || 'manual'
       };
-      if (editingContact) onEditContact?.(data);
+      
+      const isExisting = contacts.some(o => o.id === data.id);
+      if (isExisting) onEditContact?.(data);
       else onAddContact?.(data);
+      
       setIsModalOpen(false);
       setEditingContact(null);
   };
@@ -100,7 +103,7 @@ const Contacts: React.FC<ContactsProps> = ({ contacts, companyInfo, onAddContact
             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.pdf,image/*" />
             
             <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2.5 px-5 py-3 rounded-xl text-[9px] font-black bg-white border-2 border-slate-200 text-slate-900 hover:border-indigo-600 transition-all uppercase tracking-widest shadow-sm">
-                <Upload className="w-3.5 h-3.5 text-indigo-500" /> Importação Neural (CSV/PDF)
+                <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> Scan Neural de Parceiro
             </button>
 
             <button onClick={() => { setEditingContact(null); setIsModalOpen(true); }} className="bg-slate-950 text-white px-6 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-brand transition-all shadow-lg flex items-center gap-2">
@@ -180,82 +183,16 @@ const Contacts: React.FC<ContactsProps> = ({ contacts, companyInfo, onAddContact
         </table>
       </div>
 
-      {/* Modal de Contrato */}
-      {isContractModalOpen && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-slate-900/70 backdrop-blur-lg p-4">
-            <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-4xl p-10 border border-white/20 animate-in zoom-in-95 max-h-[90vh] flex flex-col">
-                <div className="flex justify-between items-center mb-8 shrink-0">
-                    <div>
-                        <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter">Gerador de Minuta Contratual</h3>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Soberania Jurídica by MaestrIA</p>
-                    </div>
-                    <button onClick={() => { setIsContractModalOpen(false); setGeneratedContract(''); setServiceDetails(''); }} className="p-2.5 hover:bg-slate-100 rounded-full transition-all"><X className="w-5 h-5 text-slate-400"/></button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto space-y-8 px-2 custom-scrollbar">
-                    {!generatedContract ? (
-                      <div className="space-y-6">
-                          <div className="p-6 bg-slate-50 border border-slate-100 rounded-2xl">
-                              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Qualificação das Partes</h4>
-                              <div className="grid grid-cols-2 gap-6">
-                                  <div className="p-4 bg-white rounded-xl border border-slate-100">
-                                      <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Contratada</p>
-                                      <p className="font-bold text-sm text-slate-900">{companyInfo.name}</p>
-                                      <p className="text-[10px] text-slate-400">{companyInfo.address || 'Sem endereço configurado'}</p>
-                                  </div>
-                                  <div className="p-4 bg-white rounded-xl border border-slate-100">
-                                      <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Contratante</p>
-                                      <p className="font-bold text-sm text-slate-900">{contractClient?.name}</p>
-                                      <p className="text-[10px] text-slate-400">{contractClient?.address || 'Sem endereço configurado'}</p>
-                                  </div>
-                              </div>
-                          </div>
-                          <div className="space-y-2">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Escopo, Valor e Prazo</label>
-                              <textarea 
-                                value={serviceDetails} 
-                                onChange={(e) => setServiceDetails(e.target.value)}
-                                placeholder="Descreva os serviços detalhadamente, os valores acertados, datas de entrega e qualquer condição especial..."
-                                className="w-full h-48 bg-slate-50 border border-slate-200 p-6 rounded-2xl font-medium outline-none text-sm focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-inner"
-                              />
-                          </div>
-                          <button 
-                            onClick={handleGenerateContract}
-                            disabled={isGenerating || !serviceDetails}
-                            className="w-full bg-slate-950 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-xs tracking-widest hover:bg-brand transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                          >
-                            {isGenerating ? <><Loader2 className="w-5 h-5 animate-spin"/> Elaborando Minuta Jurídica...</> : <><Sparkles className="w-5 h-5 text-indigo-400"/> Gerar Contrato Profissional</>}
-                          </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-6">
-                          <div className="p-8 bg-slate-50 border border-slate-200 rounded-3xl font-medium text-slate-700 leading-relaxed text-sm whitespace-pre-wrap">
-                              {generatedContract}
-                          </div>
-                          <div className="flex gap-4">
-                              <button onClick={() => setGeneratedContract('')} className="flex-1 px-8 py-4 bg-white border border-slate-200 rounded-2xl font-black text-[10px] uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-all">Refinar Dados</button>
-                              <button onClick={downloadContractPDF} className="flex-1 px-8 py-4 bg-slate-950 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-brand transition-all flex items-center justify-center gap-2">
-                                  <Download className="w-4 h-4" /> Baixar PDF Contratual
-                              </button>
-                          </div>
-                          <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center gap-3">
-                              <ShieldCheck className="w-5 h-5 text-indigo-600" />
-                              <p className="text-[9px] font-black text-indigo-900 uppercase">Minuta gerada com conformidade jurídica sugerida pela IA. Revise cuidadosamente antes de assinar.</p>
-                          </div>
-                      </div>
-                    )}
-                </div>
-            </div>
-        </div>
-      )}
-
-      {/* Modal de Parceiro */}
+      {/* Modal de Parceiro (Revisão e Cadastro) */}
       {isModalOpen && (
           <div className="fixed inset-0 z-[400] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
               <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-2xl p-10 border border-white/20 animate-in zoom-in-95 max-h-[95vh] overflow-y-auto custom-scrollbar">
                   <div className="flex justify-between items-center mb-8">
-                      <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter">Perfil de Parceiro</h3>
-                      <button onClick={() => setIsModalOpen(false)} className="p-2.5 hover:bg-slate-100 rounded-full transition-all"><X className="w-5 h-5 text-slate-400"/></button>
+                      <div>
+                        <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter">Perfil de Parceiro</h3>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Gestão de dados cadastrais</p>
+                      </div>
+                      <button onClick={() => { setIsModalOpen(false); setEditingContact(null); }} className="p-2.5 hover:bg-slate-100 rounded-full transition-all"><X className="w-5 h-5 text-slate-400"/></button>
                   </div>
                   <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -297,7 +234,7 @@ const Contacts: React.FC<ContactsProps> = ({ contacts, companyInfo, onAddContact
                                     <input name="address" defaultValue={editingContact?.address} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl font-bold outline-none text-xs uppercase" />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase ml-1">CEP</label>
+                                    <label className="text-[9px] font-black text-slate-400 uppercase ml-1">CEP (Zip Code)</label>
                                     <input name="zipCode" defaultValue={editingContact?.zipCode} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl font-bold outline-none text-xs uppercase" />
                                 </div>
                                 <div className="space-y-1.5">
@@ -315,7 +252,9 @@ const Contacts: React.FC<ContactsProps> = ({ contacts, companyInfo, onAddContact
                             </div>
                         </div>
 
-                        <button type="submit" className="w-full bg-slate-950 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest hover:bg-brand transition-all">Salvar Dados do Parceiro</button>
+                        <button type="submit" className="w-full bg-slate-950 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest hover:bg-brand transition-all flex items-center justify-center gap-2">
+                           <CheckCircle2 className="w-5 h-5" /> Confirmar e Salvar Parceiro
+                        </button>
                   </form>
               </div>
           </div>
