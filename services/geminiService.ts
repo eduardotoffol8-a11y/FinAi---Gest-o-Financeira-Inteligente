@@ -1,42 +1,43 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { Transaction, Contact } from "../types";
 
-const getApiKey = () => {
+// Função centralizada para instanciar a IA seguindo rigorosamente as normas de process.env.API_KEY
+const createAI = () => {
   // @ts-ignore
-  const key = (typeof process !== 'undefined' && process.env?.API_KEY) || null;
-  if (!key || key === 'undefined' || key.length < 10) return null;
-  return key;
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey === 'undefined') {
+    throw new Error("API_KEY_NOT_FOUND");
+  }
+  return new GoogleGenAI({ apiKey });
 };
 
 const handleAIError = (error: any): string => {
-  console.error("MaestrIA Diagnostic:", error);
+  console.error("MaestrIA Cloud Diagnostic:", error);
   const msg = error?.message || String(error);
-  if (msg.includes("API_KEY_MISSING")) return "ERRO_IA: Chave não configurada.";
+  
+  if (msg.includes("API_KEY_NOT_FOUND") || msg.includes("apiKey")) {
+    return "ERRO_IA: A chave API não foi injetada no sistema. Certifique-se de que a variável 'API_KEY' está na Vercel e que você fez um 'Redeploy' após salvá-la.";
+  }
+  if (msg.includes("429")) return "ERRO_IA: Limite de cota excedido.";
   return `ERRO_IA: ${msg}`;
 };
 
 export const analyzeDocument = async (base64Data: string, mimeType: string, type: 'transaction' | 'contact', categories?: string[]): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return handleAIError(new Error("API_KEY_MISSING"));
-
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = createAI();
     const categoriesList = categories?.join(', ') || 'Geral, Operacional, Outros';
     
     const prompt = type === 'transaction' 
-      ? `Aja como um Auditor Contábil. Analise este documento (Recibo/NF/Extrato).
-         REGRAS DE EXTRAÇÃO:
-         - 'date': Converta para YYYY-MM-DD.
-         - 'description': Use o nome do produto ou serviço principal.
-         - 'amount': Apenas números (ex: 150.50).
-         - 'type': 'expense' (saída/pagamento) ou 'income' (entrada/recebimento).
-         - 'category': Escolha a melhor de [${categoriesList}].
-         - 'supplier': Nome do estabelecimento ou emissor.
-         - 'paymentMethod': PIX, Cartão, Boleto ou Dinheiro.
-         Retorne um JSON ARRAY puro.`
-      : `Extraia parceiros comerciais. Capture: name (pessoa), company (razão social), taxId (CNPJ/CPF), email, phone (telefone), address (rua, nº), neighborhood (bairro), city, state, zipCode, type ('client' ou 'supplier').
-         Retorne um JSON ARRAY puro.`;
+      ? `Analise este documento financeiro e extraia um JSON ARRAY:
+         - date: YYYY-MM-DD
+         - description: Descrição concisa
+         - amount: Valor numérico absoluto
+         - type: 'expense' ou 'income'
+         - category: Use uma destas: [${categoriesList}]
+         - supplier: Nome da empresa/pessoa
+         - paymentMethod: Meio de pagamento identificado.`
+      : `Extraia contatos deste documento em JSON ARRAY: name, company, taxId, email, phone, address, type ('client' ou 'supplier').`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -53,34 +54,29 @@ export const analyzeDocument = async (base64Data: string, mimeType: string, type
 };
 
 export const extractFromText = async (text: string, categories: string[], type: 'transaction' | 'contact' = 'transaction'): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return handleAIError(new Error("API_KEY_MISSING"));
-
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = createAI();
     const categoriesList = categories.join(', ');
     
+    // Prompt customizado para os cabeçalhos do usuário: "Data","Tipo","Categoria","Montante","Moeda","Memorando"
     const prompt = type === 'transaction'
-      ? `Aja como um Engenheiro de Dados Financeiros. Analise este texto/CSV.
-         MAPEAMENTO OBRIGATÓRIO:
-         - Coluna 'Memorando' -> Mapear para 'description'.
-         - Coluna 'Montante' -> Mapear para 'amount'. Se for negativo (ex: -50.00), 'amount' deve ser 50.00 e 'type' deve ser 'expense'.
-         - Coluna 'Tipo' -> Se 'Despesa' então 'expense', se 'Receita' então 'income'.
-         - 'date' -> Converta 'DD/MM/YYYY' para 'YYYY-MM-DD'.
-         - 'category' -> Se a categoria original não estiver em [${categoriesList}], escolha a mais próxima desta lista.
-         Retorne um JSON ARRAY [{date, description, amount, type, category, supplier, paymentMethod}].`
-      : `Analise este CSV de contatos e extraia:
-         - 'name' -> Nome da pessoa ou contato principal.
-         - 'company' -> Coluna 'Empresa'.
-         - 'taxId' -> CNPJ ou CPF se houver.
-         - 'email' -> Coluna 'Email'.
-         - 'phone' -> Coluna 'Telefone'.
-         - 'type' -> Se 'Cliente' -> 'client', se 'Fornecedor' -> 'supplier'.
-         Retorne um JSON ARRAY puro.`;
+      ? `Aja como um extrator de dados financeiro de alta precisão. Analise o CSV/Texto fornecido.
+         REGRAS DE MAPEAMENTO PARA O ARQUIVO DO USUÁRIO:
+         1. A coluna "Memorando" deve ser mapeada para o campo "description".
+         2. A coluna "Montante" deve ser o "amount". Se o valor for negativo (ex: -100.00), salve o valor positivo em "amount" e defina o "type" como 'expense'.
+         3. A coluna "Tipo" define a natureza: "Despesa" -> 'expense', "Receita" -> 'income'.
+         4. A "Data" deve ser convertida para o formato YYYY-MM-DD.
+         5. "Categoria": Tente mapear para uma destas: [${categoriesList}].
+         
+         RETORNE APENAS UM JSON ARRAY: [{date, description, amount, type, category, supplier, paymentMethod}].`
+      : `Analise este CSV de contatos (Colunas: Nome, Empresa, Email, Telefone, Tipo).
+         Mapeie: "Nome" -> name, "Empresa" -> company, "Email" -> email, "Telefone" -> phone.
+         Se "Tipo" for "Cliente", type = 'client'. Se for "Fornecedor", type = 'supplier'.
+         RETORNE APENAS UM JSON ARRAY puro.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `${prompt}\n\nDados brutos:\n${text}`,
+      contents: `${prompt}\n\nCONTEÚDO DO ARQUIVO:\n${text}`,
       config: { responseMimeType: "application/json", temperature: 0.1 }
     });
     return response.text || "[]";
@@ -90,72 +86,63 @@ export const extractFromText = async (text: string, categories: string[], type: 
 };
 
 export const sendMessageToGemini = async (message: string): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return handleAIError(new Error("API_KEY_MISSING"));
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = createAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: message,
-      config: { systemInstruction: "Você é o MaestrIA OS. Especialista em gestão financeira e análise de dados corporativos." }
+      config: { systemInstruction: "Você é o MaestrIA OS, assistente financeiro de elite. Seja direto e focado em resultados." }
     });
-    return response.text || "Erro no motor neural.";
+    return response.text || "Sem resposta.";
   } catch (error) {
     return handleAIError(error);
   }
 };
 
+// Mantendo as outras funções com a mesma lógica de segurança
 export const generateServiceContract = async (company: any, client: Contact, serviceDetails: string): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return "IA Indisponível";
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = createAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gere um contrato de prestação de serviços entre CONTRATADA (${company.name}) e CONTRATANTE (${client.name}). Escopo: ${serviceDetails}`,
+      contents: `Gere um contrato de serviço: CONTRATADA: ${company.name}, CONTRATANTE: ${client.name}. ESCOPO: ${serviceDetails}`,
     });
     return response.text || "";
-  } catch { return ""; }
+  } catch { return "Erro ao gerar contrato."; }
 };
 
 export const generateExecutiveReport = async (transactions: Transaction[], period: string): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return "Erro de Chave";
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    const summary = transactions.slice(0, 30).map(t => `${t.date}: ${t.description} R$${t.amount}`).join('\n');
+    const ai = createAI();
+    const summary = transactions.slice(0, 20).map(t => `${t.description}: R$${t.amount}`).join('\n');
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gere um relatório executivo financeiro para ${period} baseado nestes dados:\n${summary}`,
+      contents: `Gere um relatório executivo para ${period}:\n${summary}`,
     });
     return response.text || "";
-  } catch { return ""; }
+  } catch { return "Erro no relatório."; }
 };
 
 export const performAudit = async (transactions: Transaction[]): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return "Erro de Chave";
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    const summary = transactions.slice(0, 30).map(t => `${t.date}: ${t.description} R$${t.amount}`).join('\n');
+    const ai = createAI();
+    const summary = transactions.slice(0, 20).map(t => `${t.description}: R$${t.amount}`).join('\n');
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Procure por anomalias ou erros nestes lançamentos:\n${summary}`,
+      contents: `Procure erros nestes lançamentos:\n${summary}`,
     });
     return response.text || "";
-  } catch { return ""; }
+  } catch { return "Erro na auditoria."; }
 };
 
 export const getStrategicSuggestions = async (transactions: Transaction[]): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return "Erro de Chave";
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    const summary = transactions.slice(0, 30).map(t => `${t.category}: R$${t.amount}`).join('\n');
+    const ai = createAI();
+    const summary = transactions.slice(0, 20).map(t => `${t.category}: R$${t.amount}`).join('\n');
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Sugira 3 ações estratégicas baseadas nestes gastos:\n${summary}`,
+      contents: `Dê 3 dicas para economizar baseado nisso:\n${summary}`,
     });
     return response.text || "";
-  } catch { return ""; }
+  } catch { return "Erro nas sugestões."; }
 };

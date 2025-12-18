@@ -107,8 +107,8 @@ function App() {
   };
 
   const processAIResult = (json: string, targetType: 'transaction' | 'contact', reviewRequired: boolean) => {
-    if (json.includes("ERRO_IA") || json === "[]") {
-      alert("Falha na extração neural. Verifique a API KEY e tente novamente.");
+    if (json.startsWith("ERRO_IA")) {
+      alert(json);
       setIsGlobalProcessing(false);
       return;
     }
@@ -125,11 +125,11 @@ function App() {
           description: item.description || 'Lançamento IA',
           category: categories.includes(item.category) ? item.category : categories[0],
           amount: Math.abs(Number(item.amount)) || 0,
-          type: (item.type === 'income' || item.type === 'Receita' ? 'income' : 'expense'),
+          type: (item.type === 'income' ? 'income' : 'expense'),
           status: 'paid',
           source: 'ai',
           supplier: item.supplier || '',
-          paymentMethod: item.paymentMethod || item.paymentTerms || '',
+          paymentMethod: item.paymentMethod || '',
           costCenter: item.costCenter || ''
         }));
         
@@ -143,16 +143,16 @@ function App() {
         const mapped: Contact[] = items.map((item: any) => ({
           id: (Date.now() + Math.random()).toString(),
           name: item.name || 'Parceiro',
-          company: item.company || item.Empresa || '',
-          taxId: item.taxId || item.CNPJ || item.CPF || '',
-          email: item.email || item.Email || '',
-          phone: item.phone || item.Telefone || '',
+          company: item.company || '',
+          taxId: item.taxId || '',
+          email: item.email || '',
+          phone: item.phone || '',
           address: item.address || '',
           neighborhood: item.neighborhood || '',
           city: item.city || '',
           state: item.state || '',
           zipCode: item.zipCode || '',
-          type: (item.type === 'supplier' || item.type === 'Fornecedor' ? 'supplier' : 'client'),
+          type: (item.type === 'supplier' ? 'supplier' : 'client'),
           totalTraded: 0,
           source: 'ai'
         }));
@@ -160,7 +160,7 @@ function App() {
         setView(ViewState.CONTACTS);
       }
     } catch (e) { 
-      alert("Erro ao processar dados da IA."); 
+      alert("IA retornou um formato que não conseguimos ler. Verifique o arquivo."); 
     }
     finally { setIsGlobalProcessing(false); }
   };

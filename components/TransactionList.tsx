@@ -5,7 +5,7 @@ import { Search, Trash2, Edit, X, Plus, Sparkles, FilePlus, CreditCard, Landmark
 import { translations } from '../translations';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -84,7 +84,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
     doc.setFontSize(10);
     doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 22);
 
-    (doc as any).autoTable({
+    autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
       startY: 30,
@@ -179,7 +179,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
               <th className="px-8 py-4 text-[9px] font-black uppercase tracking-widest text-center">Meio</th>
               <th className="px-8 py-4 text-[9px] font-black uppercase tracking-widest">Categoria</th>
               <th className="px-8 py-4 text-[9px] font-black uppercase tracking-widest">Valor</th>
-              <th className="px-8 py-4 text-right uppercase text-[9px] font-black tracking-widest">Ações</th>
+              <th className="px-8 py-4 text-right uppercase text-[9px] font-black tracking-widest">Ações Rápidas</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
