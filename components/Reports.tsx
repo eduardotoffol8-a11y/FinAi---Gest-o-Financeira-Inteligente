@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Transaction, GeneratedReport } from '../types';
 import { generateExecutiveReport, performAudit, getStrategicSuggestions } from '../services/geminiService';
-import { FileText, Download, ShieldAlert, Cpu, BrainCircuit, Trash2, Edit3, Save, ChevronRight, Activity, ShieldCheck, Target, TrendingUp, Loader2 } from 'lucide-react';
+import { FileText, Download, ShieldAlert, Cpu, BrainCircuit, Trash2, Edit3, Save, ChevronRight, Activity, ShieldCheck, Target, TrendingUp, Loader2, AlertCircle } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { translations } from '../translations';
 
@@ -10,9 +10,11 @@ interface ReportsProps {
   transactions: Transaction[];
   language: 'pt-BR' | 'en-US' | 'es-ES';
   companyInfo?: any;
+  isAiActive?: boolean;
+  onRequiresAiSetup?: () => void;
 }
 
-const Reports: React.FC<ReportsProps> = ({ transactions, language, companyInfo }) => {
+const Reports: React.FC<ReportsProps> = ({ transactions, language, companyInfo, isAiActive, onRequiresAiSetup }) => {
   const t = translations[language];
   const [reports, setReports] = useState<GeneratedReport[]>(() => {
     const saved = localStorage.getItem('maestria_reports_library_v2');
@@ -28,6 +30,10 @@ const Reports: React.FC<ReportsProps> = ({ transactions, language, companyInfo }
   }, [reports]);
 
   const runAnalysis = async (type: 'audit' | 'strategic' | 'executive') => {
+    if (!isAiActive) {
+      onRequiresAiSetup?.();
+      return;
+    }
     setLoading(true);
     try {
         let result = '';
@@ -58,7 +64,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, language, companyInfo }
         setActiveReport(newReport);
         setEditContent(result);
     } catch (err) {
-        alert("Erro na consulta neural.");
+        alert("Erro na consulta neural. Verifique sua chave API.");
     } finally {
         setLoading(false);
     }
@@ -142,6 +148,15 @@ const Reports: React.FC<ReportsProps> = ({ transactions, language, companyInfo }
           <h2 className="text-4xl font-black text-slate-900 italic tracking-tighter uppercase">{t.ia}</h2>
           <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-1">Biblioteca de Dossiês e Auditorias Neurais</p>
         </div>
+        {!isAiActive && (
+          <div className="flex items-center gap-3 bg-rose-50 border border-rose-100 px-6 py-4 rounded-3xl text-rose-600">
+             <AlertCircle className="w-5 h-5" />
+             <div className="flex flex-col">
+                <span className="text-[9px] font-black uppercase tracking-widest leading-none">Cérebro Offline</span>
+                <button onClick={onRequiresAiSetup} className="text-[10px] font-bold underline text-rose-700 mt-1 uppercase">Ativar Inteligência Agora</button>
+             </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

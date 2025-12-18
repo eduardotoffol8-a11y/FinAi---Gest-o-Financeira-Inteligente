@@ -1,6 +1,6 @@
 
 import React, { useRef, useState } from 'react';
-import { Save, Check, Download, Upload, Plus, Layout, Image as ImageIcon, Shield, RefreshCw, Loader2, X, MapPin, Mail, Phone, Building2, Globe, FileJson, Import } from 'lucide-react';
+import { Save, Check, Download, Upload, Plus, Layout, Image as ImageIcon, Shield, RefreshCw, Loader2, X, MapPin, Mail, Phone, Building2, Globe, FileJson, Import, Key } from 'lucide-react';
 import { TeamMember } from '../types';
 import { translations } from '../translations';
 import { testConnection } from '../services/geminiService';
@@ -17,6 +17,7 @@ interface SettingsProps {
   allData: any;
   onImportAllData?: (data: any) => void;
   onStatusUpdate?: (status: boolean | null) => void;
+  onOpenKeySelector?: () => void;
 }
 
 const Settings: React.FC<SettingsProps> = ({ 
@@ -30,7 +31,8 @@ const Settings: React.FC<SettingsProps> = ({
   setLanguage, 
   allData, 
   onImportAllData, 
-  onStatusUpdate 
+  onStatusUpdate,
+  onOpenKeySelector
 }) => {
     const logoInputRef = useRef<HTMLInputElement>(null);
     const importBackupRef = useRef<HTMLInputElement>(null);
@@ -115,6 +117,9 @@ const Settings: React.FC<SettingsProps> = ({
                     <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.5em] mt-2">Central de Preferências Master</p>
                  </div>
                  <div className="flex gap-4">
+                    <button onClick={onOpenKeySelector} className="bg-indigo-50 text-indigo-600 px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-all flex items-center gap-2 border border-indigo-100">
+                        <Key className="w-4 h-4" /> Autenticar IA
+                    </button>
                     <button onClick={handleTestAi} disabled={isTestingAi} className="bg-white border-2 border-slate-200 text-slate-900 px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-indigo-600 transition-all flex items-center gap-2">
                         {isTestingAi ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                         Sincronizar Sinal IA
