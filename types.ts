@@ -108,3 +108,17 @@ export enum ViewState {
   SETTINGS = 'CONFIGURAÇÕES',
   DOCS = 'MANUAL_IA'
 }
+
+// Extensão global para suporte ao AI Studio
+declare global {
+  /* Fix: Define AIStudio interface separately to match environment type requirements */
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+
+  interface Window {
+    /* Fix: Use 'readonly' and 'AIStudio' type to match existing global declarations and modifiers */
+    readonly aistudio: AIStudio;
+  }
+}

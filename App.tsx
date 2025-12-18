@@ -19,7 +19,7 @@ import * as XLSX from 'xlsx';
 
 const STORAGE_KEY = 'maestria_v11_enterprise_stable';
 const BRAND_STORAGE_KEY = 'maestria_brand_v2';
-const DEFAULT_CATEGORIES = ['Alimentação', 'Vendas', 'Salário', 'Mercado', 'Carro', 'Saúde', 'Operacional', 'Marketing', 'Aluguel', 'Utilidades', 'Investimento', 'Casa', 'Compras'];
+const DEFAULT_CATEGORIES = ['Alimentação', 'Vendas', 'Salário', 'Mercado', 'Carro', 'Saúde', 'Saída Geral', 'Entrada Geral'];
 
 function App() {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -33,11 +33,11 @@ function App() {
   
   const [companyInfo, setCompanyInfo] = useState(() => {
     const saved = localStorage.getItem(BRAND_STORAGE_KEY);
-    if (!saved) return { name: 'EMPRESA MASTER', logo: null, brandColor: '#6366f1' };
+    if (!saved) return { name: 'Empresa', logo: null, brandColor: '#6366f1' };
     try { 
       return JSON.parse(saved);
     } catch (e) { 
-      return { name: 'EMPRESA MASTER', logo: null, brandColor: '#6366f1' }; 
+      return { name: 'Empresa', logo: null, brandColor: '#6366f1' }; 
     }
   });
 
@@ -51,7 +51,7 @@ function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   const checkKeyStatus = useCallback(async () => {
-    if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+    if (window.aistudio) {
       const selected = await window.aistudio.hasSelectedApiKey();
       setIsKeySelected(selected);
       if (selected) {
@@ -66,14 +66,14 @@ function App() {
   }, []);
 
   const handleSelectKey = async () => {
-    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+    if (window.aistudio) {
       await window.aistudio.openSelectKey();
       setIsKeySelected(true);
-      // Re-check após pequena espera para permitir atualização do ambiente
+      // Aguarda injeção da chave e valida
       setTimeout(async () => {
         const res = await testConnection();
         setIsAiActive(res.success);
-      }, 1000);
+      }, 500);
     }
   };
 
@@ -163,7 +163,7 @@ function App() {
             return {
                 id: Math.random().toString(36).substring(2, 11),
                 date: item.date || new Date().toISOString().split('T')[0],
-                description: item.description || 'Scan Inteligente',
+                description: item.description || 'Lançamento IA',
                 category: categories.indexOf(item.category) !== -1 ? item.category : categories[0],
                 amount: Math.abs(rawAmount),
                 type: (item.type === 'income' || rawAmount > 0) ? 'income' : 'expense',
@@ -208,7 +208,6 @@ function App() {
     }
   };
 
-  // Fix: Adicionando a função ausente para importar backups completos do sistema
   const handleImportFullBackup = (data: any) => {
     if (!data) return;
     try {
@@ -219,9 +218,7 @@ function App() {
       if (data.corporateMessages) setCorporateMessages(data.corporateMessages);
       if (data.categories) setCategories(data.categories);
       if (data.companyInfo) setCompanyInfo(data.companyInfo);
-    } catch (e) {
-      console.error("Erro ao importar backup:", e);
-    }
+    } catch (e) {}
   };
 
   if (!isLoaded) return null;
@@ -230,7 +227,7 @@ function App() {
   const t = translations[language];
 
   return (
-    <div className="flex h-screen bg-[#f8fafc] font-sans overflow-hidden">
+    <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
       {isThinking && (
         <div className="fixed top-0 left-0 w-full h-[3px] z-[999] overflow-hidden">
           <div className="h-full bg-indigo-500 shadow-[0_0_10px_#6366f1] animate-loading-line"></div>
@@ -238,28 +235,29 @@ function App() {
       )}
 
       {!isKeySelected && (
-        <div className="fixed inset-0 z-[500] bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-6">
-          <div className="bg-white rounded-[3rem] p-12 max-w-md w-full text-center shadow-2xl animate-in zoom-in-95 duration-500">
+        <div className="fixed inset-0 z-[500] bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-6 text-center">
+          <div className="bg-white rounded-[3rem] p-12 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-500">
             <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mx-auto mb-8">
               <Sparkles className="w-8 h-8 animate-pulse" />
             </div>
             <h2 className="text-2xl font-black text-slate-900 italic uppercase tracking-tighter mb-4">Ativar Inteligência</h2>
             <p className="text-slate-500 font-medium text-sm leading-relaxed mb-10">
-              Conecte sua chave de API para desbloquear a análise neural financeira e automação de documentos.
+              Conecte sua chave de acesso para desbloquear a análise neural financeira e automação de documentos.
             </p>
             <button 
               onClick={handleSelectKey}
-              className="w-full bg-slate-950 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[11px] tracking-widest hover:bg-indigo-600 transition-all flex items-center justify-center gap-2"
+              className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[11px] tracking-widest hover:bg-indigo-600 transition-all flex items-center justify-center gap-2"
             >
-              <Key className="w-5 h-5" /> Conectar Chave Google
+              <Key className="w-5 h-5" /> Conectar Agora
             </button>
+            <p className="mt-6 text-[10px] text-slate-400 font-bold uppercase">Consulte os detalhes de faturamento em ai.google.dev</p>
           </div>
         </div>
       )}
 
       <aside className="hidden lg:flex w-72 bg-white border-r border-slate-100 flex-col p-6 z-20 shadow-sm">
         <div className="flex items-center gap-3 px-2 mb-10">
-          <div className="w-10 h-10 bg-slate-950 rounded-xl flex items-center justify-center text-white shadow-2xl overflow-hidden">
+          <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-xl overflow-hidden">
              {companyInfo.logo ? <img src={companyInfo.logo} className="w-full h-full object-cover" alt="Logo" /> : <Command className="w-6 h-6"/>}
           </div>
           <div>
@@ -298,12 +296,12 @@ function App() {
              <div className="flex items-center gap-3 pr-2">
                 <div className="flex flex-col items-end">
                     <span className={`text-[7px] font-black uppercase tracking-widest leading-none mb-1 transition-colors ${isThinking ? 'text-indigo-500 animate-pulse' : 'text-slate-400'}`}>
-                      {isThinking ? 'SINCRONIZANDO...' : isAiActive ? 'MOTOR ONLINE' : 'MOTOR OFFLINE'}
+                      {isThinking ? 'SINCRO NEURAL ATIVA' : isAiActive ? 'ONLINE' : 'OFFLINE'}
                     </span>
-                    <div className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${isAiActive === null ? 'bg-slate-300' : isAiActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`}></div>
+                    <div className={`w-2 h-2 rounded-full transition-all duration-300 ${isAiActive === null ? 'bg-slate-300' : isAiActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`}></div>
                 </div>
              </div>
-             <button onClick={() => setIsChatOpen(true)} className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-[9px] font-black bg-slate-950 text-white shadow-lg hover:bg-indigo-600 transition-all uppercase tracking-widest">
+             <button onClick={() => setIsChatOpen(true)} className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-[9px] font-black bg-slate-900 text-white shadow-lg hover:bg-indigo-600 transition-all uppercase tracking-widest">
                <Sparkles className="w-4 h-4 text-indigo-400" /> ACESSAR IA
              </button>
           </div>
