@@ -105,7 +105,7 @@ const Docs: React.FC = () => {
                         <div className="space-y-4">
                             <h4 className="font-black uppercase text-indigo-400 text-xs tracking-[0.2em]">Soberania de Backup</h4>
                             <p className="text-sm text-slate-400 font-medium leading-relaxed">
-                                Vá em <span className="text-white">Configurações > Vault de Soberania</span> toda sexta-feira. Baixe o backup total (.json). Isso garante que, mesmo sem internet ou cache limpo, seu financeiro esteja seguro.
+                                Vá em <span className="text-white">Configurações &gt; Vault de Soberania</span> toda sexta-feira. Baixe o backup total (.json). Isso garante que, mesmo sem internet ou cache limpo, seu financeiro esteja seguro.
                             </p>
                         </div>
                         <div className="space-y-4">
