@@ -2,10 +2,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, Contact } from "../types";
 
-const createAI = () => {
+// Função para garantir que o SDK use a chave mais atualizada do ambiente (Mandatório para Vercel/Produção)
+const getAIClient = () => {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("MISSING_KEY");
+  if (!apiKey) throw new Error("API_KEY_MISSING");
   return new GoogleGenAI({ apiKey });
+};
+
+// Tratamento de erro silencioso para o usuário, mas funcional para o sistema
+const handleAiError = async (error: any) => {
+  const errorMessage = error?.message || "";
+  if (errorMessage.includes("Requested entity was not found") || errorMessage.includes("API_KEY_MISSING")) {
+    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+      await window.aistudio.openSelectKey();
+    }
+  }
+  throw error;
 };
 
 const MAIN_MODEL = "gemini-3-flash-preview";
@@ -52,132 +64,140 @@ const contactSchema = {
 
 export const testConnection = async (): Promise<{ success: boolean; message: string }> => {
   try {
-    const ai = createAI();
+    const ai = getAIClient();
     await ai.models.generateContent({
       model: MAIN_MODEL,
       contents: "ping",
-      config: { maxOutputTokens: 5 }
+      config: { maxOutputTokens: 5, thinkingConfig: { thinkingBudget: 0 } }
     });
-    return { success: true, message: "OK" };
+    return { success: true, message: "Conectado" };
   } catch (error) {
-    console.error("AI Connection Error:", error);
-    return { success: false, message: "OFFLINE" };
+    return { success: false, message: "Aguardando Chave" };
   }
 };
 
 export const analyzeDocument = async (base64Data: string, mimeType: string, type: "transaction" | "contact", categories?: string[]): Promise<string> => {
   try {
-    const ai = createAI();
-    const catsString = categories ? categories.join(", ") : "Operacional, Vendas, Outros";
+    const ai = getAIClient();
+    const catsString = categories ? categories.join(", ") : "Operacional, Outros";
     const prompt = type === "transaction" 
-      ? "EXTRAÇÃO AUDITADA: Analise o documento e extraia todas as transações financeiras. Categorias permitidas: " + catsString
-      : "EXTRAÇÃO CADASTRAL: Extraia todos os parceiros comerciais (clientes/fornecedores).";
+      ? `Ação: Extração de dados financeiros de documento/imagem. Categorias permitidas: ${catsString}`
+      : "Ação: Extração de dados cadastrais de parceiro comercial.";
 
     const response = await ai.models.generateContent({
       model: MAIN_MODEL,
       contents: { parts: [{ inlineData: { mimeType, data: base64Data } }, { text: prompt }] },
       config: { 
         responseMimeType: "application/json",
-        responseSchema: type === "transaction" ? transactionSchema : contactSchema
+        responseSchema: type === "transaction" ? transactionSchema : contactSchema,
+        thinkingConfig: { thinkingBudget: 2000 }
       }
     });
     return response.text || "[]";
   } catch (error) { 
-    console.error("Analysis Error:", error);
+    await handleAiError(error);
     return "[]"; 
   }
 };
 
 export const extractFromText = async (text: string, categories: string[], type: "transaction" | "contact" = "transaction"): Promise<string> => {
   try {
-    const ai = createAI();
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: MAIN_MODEL,
-      contents: "Extraia dados estruturados deste texto:\n\n" + text,
+      contents: `Transforme o seguinte texto em dados estruturados JSON:\n\n${text}`,
       config: { 
         responseMimeType: "application/json",
-        responseSchema: type === "transaction" ? transactionSchema : contactSchema
+        responseSchema: type === "transaction" ? transactionSchema : contactSchema,
+        thinkingConfig: { thinkingBudget: 2000 }
       }
     });
     return response.text || "[]";
   } catch (error) { 
-    console.error("Text Extraction Error:", error);
+    await handleAiError(error);
     return "[]"; 
   }
 };
 
 export const sendMessageToGemini = async (message: string): Promise<string> => {
   try {
-    const ai = createAI();
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: MAIN_MODEL,
-      contents: "Você é MaestrIA, uma inteligência financeira de elite. Responda de forma executiva e estratégica.\n\nUsuário: " + message,
+      contents: `Você é a MaestrIA, uma assistente financeira executiva de alto nível. Responda de forma curta, direta e estratégica.\n\nPergunta do usuário: ${message}`,
       config: {
-        thinkingConfig: { thinkingBudget: 4096 }
+        thinkingConfig: { thinkingBudget: 4000 }
       }
     });
-    return response.text || "Sem resposta.";
+    return response.text || "Não foi possível processar a resposta.";
   } catch (error) { 
-    console.error("Chat Error:", error);
-    return "Sistema temporariamente indisponível."; 
+    await handleAiError(error);
+    return "Conexão com o motor neural interrompida."; 
   }
 };
 
 export const generateExecutiveReport = async (transactions: Transaction[], period: string): Promise<string> => {
   try {
-    const ai = createAI();
+    const ai = getAIClient();
     const response = await ai.models.generateContent({ 
       model: PRO_MODEL, 
-      contents: "AJA COMO UM CFO. Realize uma análise profunda (Deep Thinking) destas transações para o período " + period + ": " + JSON.stringify(transactions) + ". Gere um DRE Executivo em Markdown com insights de liquidez.",
+      contents: `AJA COMO UM CFO SENIOR. Analise profundamente estas transações do período ${period}: ${JSON.stringify(transactions)}. Gere um relatório DRE executivo com análise de queima de caixa e sugestões de liquidez.`,
       config: {
         thinkingConfig: { thinkingBudget: 32768 }
       }
     });
-    return response.text || "Erro ao gerar relatório.";
+    return response.text || "Falha ao gerar relatório.";
   } catch (error) { 
-    console.error("Report Error:", error);
-    return "Erro no motor neural."; 
+    await handleAiError(error);
+    return "Erro no processamento neural Pro."; 
   }
 };
 
 export const performAudit = async (transactions: Transaction[]): Promise<string> => {
   try {
-    const ai = createAI();
+    const ai = getAIClient();
     const response = await ai.models.generateContent({ 
       model: PRO_MODEL, 
-      contents: "AJA COMO UM AUDITOR FISCAL. Realize uma auditoria completa nestes dados em busca de anomalias, riscos de compliance ou duplicidades: " + JSON.stringify(transactions),
+      contents: `AJA COMO UM AUDITOR FISCAL. Realize uma busca exaustiva por anomalias, duplicidades ou riscos fiscais nestes dados: ${JSON.stringify(transactions)}`,
       config: {
         thinkingConfig: { thinkingBudget: 32768 }
       }
     });
-    return response.text || "Erro ao realizar auditoria.";
+    return response.text || "Falha na auditoria.";
   } catch (error) { 
-    console.error("Audit Error:", error);
-    return "Erro no motor neural."; 
+    await handleAiError(error);
+    return "Erro no motor de auditoria."; 
   }
 };
 
 export const getStrategicSuggestions = async (transactions: Transaction[]): Promise<string> => {
   try {
-    const ai = createAI();
+    const ai = getAIClient();
     const response = await ai.models.generateContent({ 
       model: PRO_MODEL, 
-      contents: "AJA COMO UM CONSULTOR ESTRATÉGICO DA MCKINSEY. Analise o fluxo de caixa e proponha 5 ações de alto impacto para dobrar o lucro líquido: " + JSON.stringify(transactions),
+      contents: `AJA COMO UM CONSULTOR ESTRATÉGICO. Com base no fluxo de caixa atual, proponha 3 ações práticas de redução de custos e 2 de aumento de margem: ${JSON.stringify(transactions)}`,
       config: {
         thinkingConfig: { thinkingBudget: 32768 }
       }
     });
-    return response.text || "Erro ao gerar sugestões.";
+    return response.text || "Falha nas sugestões.";
   } catch (error) { 
-    console.error("Strategy Error:", error);
-    return "Erro no motor neural."; 
+    await handleAiError(error);
+    return "Erro no motor estratégico."; 
   }
 };
 
-export const generateServiceContract = async (companyInfo: any, client: Contact, serviceDetails: string): Promise<string> => {
+export const generateServiceContract = async (companyInfo: any, client: Contact, details: string): Promise<string> => {
   try {
-    const ai = createAI();
-    const prompt = "AJA COMO UM ADVOGADO ESPECIALISTA EM DIREITO EMPRESARIAL. Gere um contrato de prestação de serviços profissional em Markdown entre a contratada (" + companyInfo.name + ") e o contratante (" + client.name + "). Detalhes: " + serviceDetails;
+    const ai = getAIClient();
+    const prompt = `AJA COMO UM ADVOGADO EMPRESARIAL.
+    Gere uma minuta de contrato de prestação de serviços profissional em Markdown entre:
+    CONTRATADA: ${JSON.stringify(companyInfo)}
+    CONTRATANTE: ${JSON.stringify(client)}
+    
+    DETALHES DO SERVIÇO E CONDIÇÕES: ${details}
+    
+    Inclua cláusulas de rescisão, foro, obrigações das partes e validade.`;
 
     const response = await ai.models.generateContent({
       model: PRO_MODEL,
@@ -186,9 +206,9 @@ export const generateServiceContract = async (companyInfo: any, client: Contact,
         thinkingConfig: { thinkingBudget: 32768 }
       }
     });
-    return response.text || "Erro ao gerar minuta do contrato.";
-  } catch (error) { 
-    console.error("Contract Error:", error);
-    return "Falha na conexão com o motor neural jurídico."; 
+    return response.text || "Erro ao gerar minuta contratual.";
+  } catch (error) {
+    await handleAiError(error);
+    return "Falha na conexão jurídica neural.";
   }
 };

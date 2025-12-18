@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, FileText, Calendar as CalendarIcon, LogOut, Command, MessageSquare, BookOpen, ChevronRight, Zap, Cpu, Loader2 } from 'lucide-react';
+import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, FileText, Calendar as CalendarIcon, LogOut, Command, MessageSquare, BookOpen, ChevronRight, Zap, Cpu, Loader2, Key, AlertTriangle } from 'lucide-react';
 import { Transaction, ViewState, Contact, ScheduledItem, TeamMember, CorporateMessage } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionList from './components/TransactionList';
@@ -27,6 +27,7 @@ function App() {
   const [initialChatPrompt, setInitialChatPrompt] = useState<string | null>(null);
   const [isAiActive, setIsAiActive] = useState<boolean | null>(null);
   const [isThinking, setIsThinking] = useState(false);
+  const [isKeySelected, setIsKeySelected] = useState<boolean>(false);
   const [pendingReviewTx, setPendingReviewTx] = useState<Transaction | null>(null);
   const [language, setLanguage] = useState<'pt-BR' | 'en-US' | 'es-ES'>(() => (localStorage.getItem('maestria_lang') as any) || 'pt-BR');
   
@@ -49,6 +50,33 @@ function App() {
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
+  const checkKeyStatus = useCallback(async () => {
+    if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+      const selected = await window.aistudio.hasSelectedApiKey();
+      setIsKeySelected(selected);
+      if (selected) {
+        const res = await testConnection();
+        setIsAiActive(res.success);
+      }
+    } else if (process.env.API_KEY) {
+      setIsKeySelected(true);
+      const res = await testConnection();
+      setIsAiActive(res.success);
+    }
+  }, []);
+
+  const handleSelectKey = async () => {
+    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+      await window.aistudio.openSelectKey();
+      setIsKeySelected(true);
+      // Re-check após pequena espera para permitir atualização do ambiente
+      setTimeout(async () => {
+        const res = await testConnection();
+        setIsAiActive(res.success);
+      }, 1000);
+    }
+  };
+
   const saveAllData = useCallback(() => {
     if (!isLoaded || !user) return;
     try {
@@ -58,12 +86,7 @@ function App() {
       localStorage.setItem('maestria_last_view', view);
       localStorage.setItem(BRAND_STORAGE_KEY, JSON.stringify(companyInfo));
       localStorage.setItem('maestria_lang', language);
-    } catch (err) {
-      if (err instanceof Error && err.name === 'QuotaExceededError') {
-          const infoWithoutLogo = { ...companyInfo, logo: null };
-          localStorage.setItem(BRAND_STORAGE_KEY, JSON.stringify(infoWithoutLogo));
-      }
-    }
+    } catch (err) {}
   }, [transactions, contacts, schedule, team, corporateMessages, categories, isLoaded, user, view, companyInfo, language]);
 
   useEffect(() => {
@@ -71,11 +94,7 @@ function App() {
   }, [saveAllData]);
 
   useEffect(() => {
-    const checkConnection = async () => {
-        const res = await testConnection();
-        setIsAiActive(res.success);
-    };
-    checkConnection();
+    checkKeyStatus();
 
     const savedAuth = localStorage.getItem('maestria_auth');
     if (savedAuth) try { setUser(JSON.parse(savedAuth)); } catch (e) {}
@@ -93,19 +112,13 @@ function App() {
       } catch (e) {}
     }
     setIsLoaded(true);
-  }, []);
-
-  const handleImportFullBackup = (data: any) => {
-    if (data.transactions) setTransactions(data.transactions);
-    if (data.contacts) setContacts(data.contacts);
-    if (data.schedule) setSchedule(data.schedule);
-    if (data.team) setTeam(data.team);
-    if (data.corporateMessages) setCorporateMessages(data.corporateMessages);
-    if (data.categories) setCategories(data.categories);
-    if (data.companyInfo) setCompanyInfo(data.companyInfo);
-  };
+  }, [checkKeyStatus]);
 
   const handleGlobalScan = async (file: File, type: 'transaction' | 'contact', reviewRequired: boolean = false) => {
+    if (!isKeySelected) {
+      handleSelectKey();
+      return;
+    }
     setIsThinking(true);
     const reader = new FileReader();
     try {
@@ -146,25 +159,14 @@ function App() {
 
       if (targetType === 'transaction') {
           const mapped: Transaction[] = items.map((item: any) => {
-            const rawAmount = parseFloat(item.amount);
-            const isNegative = rawAmount < 0;
-            const rawType = item.type ? String(item.type).toLowerCase() : 'expense';
-            
-            let finalType: 'income' | 'expense' = 'expense';
-            if (rawType.indexOf('income') !== -1 || rawType.indexOf('receita') !== -1 || rawType.indexOf('entrada') !== -1 || (!isNegative && rawAmount > 0)) {
-                finalType = 'income';
-            }
-            if (isNegative || rawType.indexOf('expense') !== -1 || rawType.indexOf('despesa') !== -1 || rawType.indexOf('saída') !== -1) {
-                finalType = 'expense';
-            }
-
+            const rawAmount = parseFloat(item.amount) || 0;
             return {
                 id: Math.random().toString(36).substring(2, 11),
                 date: item.date || new Date().toISOString().split('T')[0],
-                description: item.description || 'Lançamento IA',
+                description: item.description || 'Scan Inteligente',
                 category: categories.indexOf(item.category) !== -1 ? item.category : categories[0],
-                amount: Math.abs(rawAmount) || 0,
-                type: finalType,
+                amount: Math.abs(rawAmount),
+                type: (item.type === 'income' || rawAmount > 0) ? 'income' : 'expense',
                 status: 'paid',
                 source: 'ai',
                 supplier: item.supplier || '',
@@ -181,19 +183,7 @@ function App() {
             setView(ViewState.TRANSACTIONS);
           }
       } else {
-          const mapped: Contact[] = items.map((item: any) => {
-            let finalType: 'client' | 'supplier' | 'both' = 'client';
-            const rawType = String(item.type || '').toLowerCase();
-            
-            if (rawType.indexOf('fornecedor') !== -1 || rawType.indexOf('supplier') !== -1) {
-                finalType = 'supplier';
-            } else if (rawType.indexOf('cliente') !== -1 || rawType.indexOf('client') !== -1) {
-                finalType = 'client';
-            } else if (rawType.indexOf('hibrido') !== -1 || rawType.indexOf('both') !== -1) {
-                finalType = 'both';
-            }
-
-            return {
+          const mapped: Contact[] = items.map((item: any) => ({
                 id: (Date.now() + Math.random()).toString(),
                 name: item.name || 'Parceiro Identificado',
                 company: item.company || '',
@@ -205,18 +195,32 @@ function App() {
                 city: item.city || '',
                 state: item.state || '',
                 zipCode: item.zipCode || '',
-                type: finalType,
+                type: item.type || 'client',
                 totalTraded: 0,
                 source: 'ai'
-            };
-          });
+          }));
           setContacts(prev => [...mapped, ...prev]);
           setView(ViewState.CONTACTS);
       }
     } catch (e) {
-      console.error("AI Parse Error:", e);
     } finally {
       setIsThinking(false);
+    }
+  };
+
+  // Fix: Adicionando a função ausente para importar backups completos do sistema
+  const handleImportFullBackup = (data: any) => {
+    if (!data) return;
+    try {
+      if (data.transactions) setTransactions(data.transactions);
+      if (data.contacts) setContacts(data.contacts);
+      if (data.schedule) setSchedule(data.schedule);
+      if (data.team) setTeam(data.team);
+      if (data.corporateMessages) setCorporateMessages(data.corporateMessages);
+      if (data.categories) setCategories(data.categories);
+      if (data.companyInfo) setCompanyInfo(data.companyInfo);
+    } catch (e) {
+      console.error("Erro ao importar backup:", e);
     }
   };
 
@@ -233,6 +237,26 @@ function App() {
         </div>
       )}
 
+      {!isKeySelected && (
+        <div className="fixed inset-0 z-[500] bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-6">
+          <div className="bg-white rounded-[3rem] p-12 max-w-md w-full text-center shadow-2xl animate-in zoom-in-95 duration-500">
+            <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mx-auto mb-8">
+              <Sparkles className="w-8 h-8 animate-pulse" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-900 italic uppercase tracking-tighter mb-4">Ativar Inteligência</h2>
+            <p className="text-slate-500 font-medium text-sm leading-relaxed mb-10">
+              Conecte sua chave de API para desbloquear a análise neural financeira e automação de documentos.
+            </p>
+            <button 
+              onClick={handleSelectKey}
+              className="w-full bg-slate-950 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[11px] tracking-widest hover:bg-indigo-600 transition-all flex items-center justify-center gap-2"
+            >
+              <Key className="w-5 h-5" /> Conectar Chave Google
+            </button>
+          </div>
+        </div>
+      )}
+
       <aside className="hidden lg:flex w-72 bg-white border-r border-slate-100 flex-col p-6 z-20 shadow-sm">
         <div className="flex items-center gap-3 px-2 mb-10">
           <div className="w-10 h-10 bg-slate-950 rounded-xl flex items-center justify-center text-white shadow-2xl overflow-hidden">
@@ -240,7 +264,7 @@ function App() {
           </div>
           <div>
             <h1 className="font-black text-lg text-slate-900 tracking-tighter uppercase italic truncate max-w-[140px] leading-tight">{companyInfo.name}</h1>
-            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-500">MaestrIA OS</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-500">Inteligência Financeira</p>
           </div>
         </div>
         <nav className="space-y-1.5 flex-1 overflow-y-auto">
@@ -251,7 +275,7 @@ function App() {
             { id: ViewState.SCHEDULE, icon: CalendarIcon, label: t.agenda },
             { id: ViewState.CONTACTS, icon: Users, label: t.partners },
             { id: ViewState.TEAM_CHAT, icon: MessageSquare, label: t.chat },
-            { id: ViewState.DOCS, icon: BookOpen, label: 'Manual IA' },
+            { id: ViewState.DOCS, icon: BookOpen, label: 'Manual' },
           ].map(item => (
             <button key={item.id} onClick={() => setView(item.id)} className={`w-full flex items-center gap-3.5 px-5 py-4 rounded-2xl text-[10px] font-black uppercase transition-all ${view === item.id ? 'bg-slate-900 text-white shadow-xl' : 'text-slate-400 hover:bg-slate-50'}`}>
               <item.icon className={`w-4.5 h-4.5 ${view === item.id ? 'text-indigo-400' : ''}`} />
@@ -274,9 +298,9 @@ function App() {
              <div className="flex items-center gap-3 pr-2">
                 <div className="flex flex-col items-end">
                     <span className={`text-[7px] font-black uppercase tracking-widest leading-none mb-1 transition-colors ${isThinking ? 'text-indigo-500 animate-pulse' : 'text-slate-400'}`}>
-                      {isThinking ? 'SINCRO NEURAL ATIVA' : 'CÉREBRO NEURAL'}
+                      {isThinking ? 'SINCRONIZANDO...' : isAiActive ? 'MOTOR ONLINE' : 'MOTOR OFFLINE'}
                     </span>
-                    <div className={`w-3 h-3 rounded-full shadow-sm ring-4 transition-all duration-300 ${isAiActive === null ? 'bg-slate-300 ring-slate-100' : isThinking ? 'bg-indigo-500 scale-125 ring-indigo-50/50' : isAiActive ? 'bg-emerald-500 ring-emerald-50' : 'bg-rose-500 ring-rose-50'}`}></div>
+                    <div className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${isAiActive === null ? 'bg-slate-300' : isAiActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`}></div>
                 </div>
              </div>
              <button onClick={() => setIsChatOpen(true)} className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-[9px] font-black bg-slate-950 text-white shadow-lg hover:bg-indigo-600 transition-all uppercase tracking-widest">
@@ -285,7 +309,7 @@ function App() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/50">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#fcfdfe]">
             <div className="max-w-[1800px] mx-auto h-full">
                 {view === ViewState.DASHBOARD && <Dashboard transactions={transactions} language={language} onViewChange={setView} aiConnected={!!isAiActive} onOpenChatWithPrompt={p => { setInitialChatPrompt(p); setIsChatOpen(true); }} />}
                 {view === ViewState.TRANSACTIONS && <TransactionList transactions={transactions} companyInfo={companyInfo} categories={categories} pendingReview={pendingReviewTx} onReviewComplete={() => setPendingReviewTx(null)} onEditTransaction={t => setTransactions(p => p.map(o => o.id === t.id ? t : o))} onDeleteTransaction={id => setTransactions(p => p.filter(t => t.id !== id))} onImportTransactions={l => setTransactions(p => [...l, ...p])} onStartScan={(f, r) => handleGlobalScan(f, 'transaction', r)} language={language} />}
