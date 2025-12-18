@@ -1,9 +1,9 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Command, Save, Check, ShieldCheck, Download, Upload, Trash2, Plus, Sparkles, Layout, Image as ImageIcon, Languages, Shield, Globe, Zap, MapPin, Phone, Mail, AlertCircle, RefreshCw } from 'lucide-react';
+import { Command, Save, Check, ShieldCheck, Download, Upload, Trash2, Plus, Sparkles, Layout, Image as ImageIcon, Languages, Shield, Globe, Zap, MapPin, Phone, Mail, AlertCircle, RefreshCw, Loader2, Play } from 'lucide-react';
 import { TeamMember } from '../types';
 import { translations } from '../translations';
-import { getKeyDiagnostic } from '../services/geminiService';
+import { getKeyDiagnostic, testConnection } from '../services/geminiService';
 
 interface SettingsProps {
   team: TeamMember[];
@@ -23,6 +23,9 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, categori
     const [isSaved, setIsSaved] = useState(false);
     const [newCategory, setNewCategory] = useState('');
     const [aiStatus, setAiStatus] = useState('Verificando...');
+    const [isTestingAi, setIsTestingAi] = useState(false);
+    const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+    
     const t = translations[language];
 
     useEffect(() => {
@@ -34,6 +37,14 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, categori
     const handleSave = () => {
         setIsSaved(true);
         setTimeout(() => setIsSaved(false), 3000);
+    };
+
+    const handleTestAi = async () => {
+        setIsTestingAi(true);
+        setTestResult(null);
+        const result = await testConnection();
+        setTestResult(result);
+        setIsTestingAi(false);
     };
 
     const exportBackup = () => {
@@ -93,25 +104,36 @@ const Settings: React.FC<SettingsProps> = ({ team = [], onUpdateMember, categori
 
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Diagnóstico de IA (Para Testes) */}
+                    {/* Diagnóstico de IA */}
                     <div className="bg-indigo-50 border-2 border-indigo-200 p-8 rounded-[2.5rem] shadow-sm space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4 text-indigo-950">
                                 <Sparkles className="w-6 h-6 text-indigo-600" />
-                                <h3 className="text-xl font-black uppercase italic tracking-tighter">Conectividade Neural (Debug)</h3>
+                                <h3 className="text-xl font-black uppercase italic tracking-tighter">Diagnóstico Neural Cloud</h3>
                             </div>
-                            <button onClick={() => window.location.reload()} className="p-2 hover:bg-indigo-100 rounded-lg text-indigo-400 transition-colors">
-                                <RefreshCw className="w-4 h-4" />
+                            <button onClick={handleTestAi} disabled={isTestingAi} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50">
+                                {isTestingAi ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
+                                Testar Conexão Real
                             </button>
                         </div>
-                        <div className="p-5 bg-white rounded-2xl border border-indigo-100 shadow-inner">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status da API Key</p>
-                            <p className="text-sm font-bold text-slate-900 break-all">{aiStatus}</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-5 bg-white rounded-2xl border border-indigo-100 shadow-inner">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status da API Key</p>
+                                <p className="text-sm font-bold text-slate-900 break-all">{aiStatus}</p>
+                            </div>
+                            <div className={`p-5 rounded-2xl border transition-all ${testResult ? (testResult.success ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100') : 'bg-white border-indigo-50 opacity-40'}`}>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Resposta do Modelo</p>
+                                <p className={`text-sm font-bold ${testResult?.success ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                    {isTestingAi ? 'Consultando...' : (testResult ? testResult.message : 'Aguardando teste...')}
+                                </p>
+                            </div>
                         </div>
+
                         <div className="flex items-start gap-3 p-4 bg-white/50 rounded-xl border border-indigo-100">
                             <AlertCircle className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
                             <p className="text-[9px] font-bold text-indigo-800 uppercase leading-relaxed">
-                                Se o status estiver VERMELHO ou AMARELO, a IA não funcionará. Certifique-se de que a variável 'API_KEY' no painel da Vercel contém exatamente a chave gerada no Google AI Studio (sem aspas, sem espaços).
+                                Suportamos chaves 'AIza' (Google Cloud) e 'GEMI' (AI Studio). Se o teste real falhar, verifique se o modelo 'gemini-3-flash-preview' está disponível em sua região ou projeto.
                             </p>
                         </div>
                     </div>

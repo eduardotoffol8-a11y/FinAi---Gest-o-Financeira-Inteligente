@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, FileText, Calendar as CalendarIcon, LogOut, Command, MessageSquare, CheckCircle2, WifiOff, Clock, Loader2, Monitor, FilePlus, AlertTriangle, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, FileText, Calendar as CalendarIcon, LogOut, Command, MessageSquare, CheckCircle2, WifiOff, Clock, Loader2, Monitor, FilePlus, AlertTriangle, RefreshCw, Cloud } from 'lucide-react';
 import { Transaction, ViewState, Contact, ScheduledItem, TeamMember, CorporateMessage } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionList from './components/TransactionList';
@@ -14,7 +14,7 @@ import Subscription from './components/Subscription';
 import MobileNav from './components/MobileNav';
 import CorporateChat from './components/CorporateChat';
 import { translations } from './translations';
-import { analyzeDocument, extractFromText } from './services/geminiService';
+import { analyzeDocument, extractFromText, getKeyDiagnostic } from './services/geminiService';
 import * as XLSX from 'xlsx';
 
 const STORAGE_KEY = 'maestria_v11_enterprise_stable';
@@ -28,6 +28,7 @@ function App() {
   const [isGlobalProcessing, setIsGlobalProcessing] = useState(false);
   const [pendingReviewTx, setPendingReviewTx] = useState<Transaction | null>(null);
   const [aiDiagnosticError, setAiDiagnosticError] = useState<string | null>(null);
+  const [aiConnectionStatus, setAiConnectionStatus] = useState<string>('');
 
   const [language, setLanguage] = useState<'pt-BR' | 'en-US' | 'es-ES'>(() => (localStorage.getItem('maestria_lang') as any) || 'pt-BR');
   const [companyInfo, setCompanyInfo] = useState(() => {
@@ -61,6 +62,11 @@ function App() {
         setCategories(parsed.categories || DEFAULT_CATEGORIES);
       } catch (e) {}
     }
+    
+    // @ts-ignore
+    const diag = getKeyDiagnostic(process.env.API_KEY);
+    setAiConnectionStatus(diag);
+    
     setIsLoaded(true);
   }, []);
 
@@ -109,7 +115,7 @@ function App() {
   };
 
   const processAIResult = (json: string, targetType: 'transaction' | 'contact', reviewRequired: boolean) => {
-    if (json.includes("ERRO_AMBIENTE") || json.includes("ERRO_GOOGLE") || json.includes("ERRO_PERMISSAO") || json.includes("ERRO_CONFIGURACAO")) {
+    if (json.includes("ERRO_") || json.includes("ERRO_CONFIG")) {
       setAiDiagnosticError(json);
       setIsGlobalProcessing(false);
       return;
@@ -150,10 +156,6 @@ function App() {
           email: item.email || '',
           phone: item.phone || '',
           address: item.address || '',
-          neighborhood: item.neighborhood || '',
-          city: item.city || '',
-          state: item.state || '',
-          zipCode: item.zipCode || '',
           type: (item.type === 'supplier' || item.type === 'Fornecedor' ? 'supplier' : 'client'),
           totalTraded: 0,
           source: 'ai'
@@ -162,7 +164,7 @@ function App() {
         setView(ViewState.CONTACTS);
       }
     } catch (e) { 
-      setAiDiagnosticError("A IA enviou dados em um formato que o sistema não conseguiu ler. Verifique o conteúdo do arquivo."); 
+      setAiDiagnosticError("A IA processou os dados mas o formato está ilegível. Tente novamente."); 
     }
     finally { setIsGlobalProcessing(false); }
   };
@@ -184,7 +186,7 @@ function App() {
                 </div>
                 <div className="flex-1">
                     <div className="flex justify-between items-start">
-                      <h4 className="font-black text-2xl text-slate-900 uppercase italic tracking-tighter">Diagnostic Center</h4>
+                      <h4 className="font-black text-2xl text-slate-900 uppercase italic tracking-tighter">Erro de Conectividade</h4>
                       <button onClick={() => setAiDiagnosticError(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><LogOut className="w-5 h-5 text-slate-400 rotate-180"/></button>
                     </div>
                     <div className="mt-6 p-6 bg-slate-50 rounded-3xl border border-slate-100 font-mono text-xs text-slate-700 whitespace-pre-wrap leading-relaxed shadow-inner">
@@ -192,11 +194,8 @@ function App() {
                     </div>
                     <div className="mt-8 flex gap-3">
                       <button onClick={() => window.location.reload()} className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-slate-950 text-white text-[11px] font-black rounded-2xl uppercase tracking-widest shadow-xl hover:bg-indigo-600 transition-all">
-                        <RefreshCw className="w-4 h-4" /> Tentar Novamente
+                        <RefreshCw className="w-4 h-4" /> Atualizar Nucleo
                       </button>
-                      <a href="https://vercel.com" target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-white border-2 border-slate-200 text-slate-900 text-[11px] font-black rounded-2xl uppercase tracking-widest hover:bg-slate-50 transition-all">
-                         Ir para o Painel Vercel
-                      </a>
                     </div>
                 </div>
             </div>
@@ -236,15 +235,13 @@ function App() {
       </aside>
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        <header className="h-20 bg-white/80 backdrop-blur-2xl border-b border-slate-100 flex items-center justify-between px-8 z-[140]">
+        <header className="h-20 bg-white border-b border-slate-100 flex items-center justify-between px-8 z-[140]">
           <div className="flex items-center gap-5">
               <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase italic">{view}</h2>
-              {isGlobalProcessing && (
-                <div className="flex items-center gap-2.5 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl animate-pulse">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin"/>
-                  <span className="text-[9px] font-black uppercase tracking-widest">IA EM OPERAÇÃO...</span>
-                </div>
-              )}
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg">
+                <Cloud className="w-3.5 h-3.5" />
+                <span className="text-[9px] font-black uppercase tracking-widest">{aiConnectionStatus.includes('✅') ? 'Cloud Sync Active' : 'Cloud Offline'}</span>
+              </div>
           </div>
           <div className="flex items-center gap-3">
              <button onClick={() => setIsChatOpen(true)} className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-[9px] font-black bg-slate-950 text-white shadow-lg hover:bg-indigo-600 transition-all uppercase tracking-widest">
