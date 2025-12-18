@@ -28,7 +28,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [scanMode, setScanMode] = useState<'review' | 'auto'>('auto');
 
-  // Ativar o modal de edição se houver uma transação pendente de revisão (vinda do Scan Manual)
   useEffect(() => {
     if (pendingReview) {
       setEditingTx(pendingReview);
@@ -49,25 +48,23 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
 
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, pageWidth, 45, 'F');
+    // Cabeçalho Timbrado Master
+    doc.setFillColor(15, 23, 42); // Slate 900
+    doc.rect(0, 0, pageWidth, 40, 'F');
     
     if (companyInfo?.logo) {
-      doc.addImage(companyInfo.logo, 'PNG', margin, 10, 25, 25);
+      doc.addImage(companyInfo.logo, 'PNG', margin, 10, 20, 20);
     }
     
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text(companyInfo?.name?.toUpperCase() || "MAESTRIA ENTERPRISE", margin + 30, 22);
+    doc.text(companyInfo?.name?.toUpperCase() || "MAESTRIA ENTERPRISE", margin + 25, 20);
     
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text(`CNPJ: ${companyInfo?.taxId || 'N/A'} | ${companyInfo?.email || ''}`, margin + 30, 28);
-    doc.text(`ENDEREÇO: ${companyInfo?.address || 'N/A'}`, margin + 30, 33);
-
-    doc.setFontSize(10);
-    doc.text(`DATA: ${new Date().toLocaleDateString(language)}`, pageWidth - margin, 33, { align: 'right' });
+    doc.text(`CNPJ: ${companyInfo?.taxId || ''} | ${companyInfo?.email || ''}`, margin + 25, 26);
+    doc.text(`${companyInfo?.address || ''}, ${companyInfo?.city || ''}`, margin + 25, 31);
 
     const tableColumn = ["Data", "Descrição", "Parceiro", "Categoria", "Valor"];
     const tableRows = filteredTransactions.map(tx => [
@@ -81,40 +78,40 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 55,
+      startY: 50,
       theme: 'striped',
       headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
-      styles: { fontSize: 8, cellPadding: 4 },
+      styles: { fontSize: 8, cellPadding: 3 },
       columnStyles: { 4: { halign: 'right', fontStyle: 'bold' } }
     });
 
-    doc.save(`Extrato_${companyInfo?.name.replace(/ /g, '_')}_${Date.now()}.pdf`);
+    doc.save(`Fluxo_${companyInfo?.name.replace(/ /g, '_')}_${Date.now()}.pdf`);
   };
 
   const exportToExcel = () => {
+    // Injetando informações da empresa no topo da planilha
     const headerInfo = [
       [companyInfo?.name?.toUpperCase() || 'MAESTRIA ENTERPRISE'],
       [`Relatório de Lançamentos - Gerado em ${new Date().toLocaleString(language)}`],
       [`CNPJ: ${companyInfo?.taxId || 'N/A'}`],
-      [''],
+      [''], // Linha vazia
+      ['Data', 'Descrição', 'Categoria', 'Parceiro', 'Tipo', 'Valor', 'Status']
     ];
 
-    const data = filteredTransactions.map(tx => ({
-      'Data': tx.date,
-      'Descrição': tx.description.toUpperCase(),
-      'Categoria': tx.category.toUpperCase(),
-      'Parceiro': (tx.supplier || 'N/A').toUpperCase(),
-      'Tipo': tx.type === 'income' ? 'ENTRADA' : 'SAÍDA',
-      'Valor': tx.amount,
-      'Status': tx.status.toUpperCase()
-    }));
+    const dataRows = filteredTransactions.map(tx => [
+      tx.date,
+      tx.description.toUpperCase(),
+      tx.category.toUpperCase(),
+      (tx.supplier || 'N/A').toUpperCase(),
+      tx.type === 'income' ? 'ENTRADA' : 'SAÍDA',
+      tx.amount,
+      tx.status.toUpperCase()
+    ]);
 
-    const ws = XLSX.utils.json_to_sheet(data, { origin: 'A5' });
-    XLSX.utils.sheet_add_aoa(ws, headerInfo, { origin: 'A1' });
-    
+    const ws = XLSX.utils.aoa_to_sheet([...headerInfo, ...dataRows]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Fluxo de Caixa");
-    XLSX.writeFile(wb, `Planilha_Financeira_${companyInfo?.name.replace(/ /g, '_')}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "Fluxo Financeiro");
+    XLSX.writeFile(wb, `Planilha_${companyInfo?.name.replace(/ /g, '_')}.xlsx`);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

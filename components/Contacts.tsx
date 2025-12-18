@@ -86,53 +86,51 @@ const Contacts: React.FC<ContactsProps> = ({ contacts, companyInfo, onAddContact
 
   const downloadContractPDF = () => {
     const doc = new jsPDF();
-    const margin = 15;
+    const margin = 20;
     const pageWidth = doc.internal.pageSize.getWidth();
 
+    // Timbrado Header
     if (companyInfo.logo) {
       doc.addImage(companyInfo.logo, 'PNG', margin, 10, 25, 25);
     }
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(companyInfo.name.toUpperCase(), margin + 30, 20);
+    doc.setTextColor(30, 41, 59);
+    doc.text(companyInfo.name.toUpperCase(), margin + 30, 18);
     
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    const headerDetails = [
-      `CNPJ: ${companyInfo.taxId || 'N/A'}`,
-      `ENDEREÇO: ${companyInfo.address || ''}, ${companyInfo.city || ''}/${companyInfo.state || ''}`,
-      `E-MAIL: ${companyInfo.email || ''} | TEL: ${companyInfo.phone || ''}`
-    ];
-    headerDetails.forEach((line, i) => doc.text(line, margin + 30, 25 + (i * 4)));
+    doc.setTextColor(100, 116, 139);
+    doc.text(`CNPJ: ${companyInfo.taxId || ''} | ${companyInfo.email || ''}`, margin + 30, 23);
+    doc.text(`${companyInfo.address || ''}, ${companyInfo.city || ''} - ${companyInfo.state || ''}`, margin + 30, 27);
     
-    doc.setDrawColor(200);
-    doc.line(margin, 40, pageWidth - margin, 40);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(margin, 38, pageWidth - margin, 38);
 
-    doc.setFontSize(10);
+    // Corpo do Contrato
+    doc.setFontSize(11);
     doc.setTextColor(30, 41, 59);
+    doc.setFont('times', 'normal');
     const splitText = doc.splitTextToSize(generatedContract, pageWidth - (margin * 2));
-    doc.text(splitText, margin, 55);
+    doc.text(splitText, margin, 50);
 
     doc.save(`Contrato_${contractClient?.name.replace(/ /g, '_')}.pdf`);
   };
 
   const downloadContractWord = () => {
+    const header = `
+      <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 30px;">
+        <h1 style="margin:0;">${companyInfo.name.toUpperCase()}</h1>
+        <p style="margin:5px 0; font-size:12px;">CNPJ: ${companyInfo.taxId} | ${companyInfo.email}</p>
+        <p style="margin:5px 0; font-size:12px;">${companyInfo.address}, ${companyInfo.city}-${companyInfo.state}</p>
+      </div>
+    `;
     const content = `
       <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; }
-            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
-            .content { white-space: pre-wrap; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h2>${companyInfo.name}</h2>
-            <p>${companyInfo.taxId || ''} | ${companyInfo.email || ''}</p>
-          </div>
-          <div class="content">${generatedContract}</div>
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: 'Times New Roman', serif; padding: 40px; line-height: 1.5; text-align: justify;">
+          ${header}
+          <div style="white-space: pre-wrap;">${generatedContract}</div>
         </body>
       </html>
     `;
@@ -150,20 +148,21 @@ const Contacts: React.FC<ContactsProps> = ({ contacts, companyInfo, onAddContact
     printWindow.document.write(`
       <html>
         <head>
-          <title>Impressão de Contrato - ${companyInfo.name}</title>
+          <title>Contrato Timbrado - ${companyInfo.name}</title>
           <style>
-            @media print { body { padding: 40px; } }
-            body { font-family: 'Times New Roman', Times, serif; color: #1a202c; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
-            .header { border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
-            .content { white-space: pre-wrap; text-align: justify; }
-            .logo { max-width: 100px; }
+            body { font-family: 'Times New Roman', Times, serif; padding: 50px; line-height: 1.6; color: #1e293b; max-width: 800px; margin: 0 auto; text-align: justify; }
+            .header { border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 40px; text-align: center; }
+            .logo { max-width: 80px; margin-bottom: 10px; }
+            .content { white-space: pre-wrap; }
+            @media print { body { padding: 0; } .no-print { display: none; } }
           </style>
         </head>
         <body>
           <div class="header">
             ${companyInfo.logo ? `<img src="${companyInfo.logo}" class="logo">` : ''}
-            <h2>${companyInfo.name}</h2>
-            <p>${companyInfo.taxId || ''} | ${companyInfo.address || ''} | ${companyInfo.email || ''}</p>
+            <h1 style="margin:0; font-size: 24px;">${companyInfo.name}</h1>
+            <p style="margin:5px 0;">CNPJ: ${companyInfo.taxId} | ${companyInfo.email}</p>
+            <p style="margin:5px 0;">${companyInfo.address}, ${companyInfo.city}-${companyInfo.state}</p>
           </div>
           <div class="content">${generatedContract}</div>
           <script>window.print(); setTimeout(() => window.close(), 500);</script>
@@ -346,12 +345,13 @@ const Contacts: React.FC<ContactsProps> = ({ contacts, companyInfo, onAddContact
                         </div>
                       ) : (
                         <div className="max-w-[800px] mx-auto bg-white p-16 shadow-2xl border border-slate-200 min-h-[1123px] relative animate-in zoom-in-95 duration-500">
+                            {/* Visual de Papel Timbrado Real */}
                             <div className="mb-12 border-b-2 border-slate-900 pb-8 flex justify-between items-end">
                                 <div>
-                                    <h1 className="text-3xl font-black italic uppercase tracking-tighter leading-none">{companyInfo.name}</h1>
+                                    <h1 className="text-2xl font-black italic uppercase tracking-tighter leading-none">{companyInfo.name}</h1>
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-2">{companyInfo.taxId} | {companyInfo.address} | {companyInfo.email}</p>
                                 </div>
-                                {companyInfo.logo && <img src={companyInfo.logo} className="h-16 w-auto object-contain opacity-80" />}
+                                {companyInfo.logo && <img src={companyInfo.logo} className="h-16 w-auto object-contain" alt="Logo" />}
                             </div>
                             
                             <textarea

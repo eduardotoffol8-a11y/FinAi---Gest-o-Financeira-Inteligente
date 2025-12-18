@@ -117,7 +117,7 @@ declare global {
   }
 
   interface Window {
-    // Fixed: Added 'readonly' modifier to match identical modifiers requirement of existing global declarations in the execution context
-    readonly aistudio: AIStudio;
+    // Fixed: Removed 'readonly' modifier to ensure identical modifiers with existing global declarations in the execution context
+    aistudio: AIStudio;
   }
 }

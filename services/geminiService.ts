@@ -66,7 +66,7 @@ export const testConnection = async (): Promise<{ success: boolean; message: str
     await ai.models.generateContent({
       model: MAIN_MODEL,
       contents: "ping",
-      config: { maxOutputTokens: 5, thinkingBudget: 0 }
+      config: { maxOutputTokens: 50, thinkingConfig: { thinkingBudget: 25 } }
     });
     return { success: true, message: "Operacional" };
   } catch (error) {
@@ -81,13 +81,8 @@ export const analyzeDocument = async (base64Data: string, mimeType: string, type
     
     const prompt = type === "transaction" 
       ? `AÇÃO: Analise este documento (NFSe, Recibo, Boleto). 
-         REGRAS: 
-         1. Se for nota de saída/venda -> 'income'. Se for compra/pagamento/recibo de gasto -> 'expense'.
-         2. Extraia o valor total exato.
-         3. Categorias Sugeridas: ${catsString}.`
-      : `AÇÃO: Extraia TODOS os dados cadastrais deste parceiro. 
-         IMPORTANTE: Capture endereço completo (Rua, CEP, Cidade, UF) e CNPJ/CPF com precisão absoluta para fins de CONTRATO JURÍDICO. 
-         Se houver múltiplos cartões ou lista, extraia todos como itens do array.`;
+         REGRAS: 1. Se venda -> 'income'. Se gasto -> 'expense'. 2. Extraia valor total. Categorias: ${catsString}.`
+      : `AÇÃO: Extraia TODOS os dados cadastrais para CONTRATO JURÍDICO. Capture endereço completo e CNPJ.`;
 
     const response = await ai.models.generateContent({
       model: MAIN_MODEL,
@@ -112,7 +107,7 @@ export const extractFromText = async (text: string, categories: string[], type: 
     
     const prompt = type === "transaction" 
       ? `Converta em JSON financeiro: ${text}. Categorias: ${catsString}.`
-      : `Extraia dados de parceiros para CRM deste texto: ${text}. Capture endereço completo para contratos.`;
+      : `Extraia dados de parceiros deste texto para contratos: ${text}.`;
 
     const response = await ai.models.generateContent({
       model: MAIN_MODEL,
@@ -135,8 +130,8 @@ export const sendMessageToGemini = async (message: string): Promise<string> => {
     const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: MAIN_MODEL,
-      contents: `Você é a MaestrIA, uma inteligência financeira estratégica. Responda de forma direta, clara e executiva.\n\nPergunta: ${message}`,
-      config: { thinkingConfig: { thinkingBudget: 4000 } }
+      contents: `Você é a MaestrIA, uma inteligência financeira estratégica. Responda de forma direta.\n\nPergunta: ${message}`,
+      config: { thinkingConfig: { thinkingBudget: 2000 } }
     });
     return response.text || "";
   } catch (error) { return "Erro na conexão neural."; }
@@ -147,7 +142,7 @@ export const generateExecutiveReport = async (transactions: Transaction[], perio
     const ai = getAIClient();
     const response = await ai.models.generateContent({ 
       model: PRO_MODEL, 
-      contents: `AJA COMO CFO. Gere um DRE Master: ${JSON.stringify(transactions)}. Período: ${period}.`,
+      contents: `AJA COMO CFO MASTER. Gere um DRE Executivo Master: ${JSON.stringify(transactions)}. Período: ${period}.`,
       config: { thinkingConfig: { thinkingBudget: 15000 } }
     });
     return response.text || "";
@@ -157,18 +152,31 @@ export const generateExecutiveReport = async (transactions: Transaction[], perio
 export const generateServiceContract = async (companyInfo: any, client: Contact, details: string): Promise<string> => {
   try {
     const ai = getAIClient();
-    const prompt = `AJA COMO ADVOGADO EMPRESARIAL MASTER. Gere uma minuta de contrato master.
-    CONTRATADA: ${JSON.stringify(companyInfo)}
-    CONTRATANTE: ${JSON.stringify(client)}
-    OBJETO: ${details}`;
+    const prompt = `AJA COMO ADVOGADO EMPRESARIAL MASTER. 
+    Gere uma minuta de contrato de prestação de serviços profissional e completa, com rigor jurídico.
+    DADOS DA CONTRATADA (NOSSA EMPRESA): ${JSON.stringify(companyInfo)}
+    DADOS DA CONTRATANTE (CLIENTE/PARCEIRO): ${JSON.stringify(client)}
+    OBJETO E CONDIÇÕES ESPECÍFICAS: ${details}
+    
+    O contrato deve conter: 
+    1. Preâmbulo detalhado com qualificação de ambas as partes.
+    2. Objeto do contrato.
+    3. Obrigações da Contratada e da Contratante.
+    4. Preço e condições de pagamento (baseado nos detalhes).
+    5. Prazo, Rescisão e Multas.
+    6. Confidencialidade e LGPD.
+    7. Foro de eleição.
+    8. Campos para assinatura e testemunhas.
+    
+    Gere o texto pronto para impressão, sem comentários extras.`;
 
     const response = await ai.models.generateContent({
       model: PRO_MODEL,
       contents: prompt,
-      config: { thinkingConfig: { thinkingBudget: 20000 } }
+      config: { thinkingConfig: { thinkingBudget: 24000 } }
     });
     return response.text || "";
-  } catch (error) { return ""; }
+  } catch (error) { return "Falha ao processar minuta jurídica."; }
 };
 
 export const performAudit = async (transactions: Transaction[]): Promise<string> => {
