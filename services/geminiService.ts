@@ -1,9 +1,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, Contact } from "../types";
 
-// ✅ Ajuste: usar import.meta.env para funcionar no Vite/React
+// ✅ Agora usa import.meta.env.VITE_GEMINI_API_KEY
 const getAIClient = () => {
-  const apiKey = import.meta.env.VITE_API_KEY;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) throw new Error("Acesso à inteligência não configurado.");
   return new GoogleGenAI({ apiKey });
 };
