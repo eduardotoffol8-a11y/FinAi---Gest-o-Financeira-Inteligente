@@ -86,7 +86,8 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
 
       if (currentImage) {
          const jsonStr = await analyzeDocument(currentImage.base64.split(',')[1], currentImage.type, 'transaction', categories);
-         const items = JSON.parse(jsonStr);
+         const cleanJson = jsonStr.replace(/```json|```/g, '').trim();
+         const items = JSON.parse(cleanJson);
          if (Array.isArray(items)) {
              processBatch(items);
              setIsLoading(false);
@@ -98,7 +99,8 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
          }
       } else if (currentText.length > 50) {
           const jsonStr = await extractFromText(currentText, categories);
-          const items = JSON.parse(jsonStr);
+          const cleanJson = jsonStr.replace(/```json|```/g, '').trim();
+          const items = JSON.parse(cleanJson);
           if (Array.isArray(items)) {
               processBatch(items);
               setIsLoading(false);
@@ -109,7 +111,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, onAddTransaction, init
       const responseText = await sendMessageToGemini(newUserMsg.text);
       setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'model', text: responseText, timestamp: new Date() }]);
     } catch (error) {
-      setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'model', text: 'Desculpe, tive um problema de conexão com o MaestrIA Cloud.', timestamp: new Date() }]);
+      setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'model', text: 'O MaestrIA Cloud está offline ou houve erro na autenticação. Verifique sua API_KEY.', timestamp: new Date() }]);
     } finally {
       setIsLoading(false);
     }

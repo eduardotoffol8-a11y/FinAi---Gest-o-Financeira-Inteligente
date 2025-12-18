@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, FileText, Calendar as CalendarIcon, LogOut, Command, MessageSquare, CheckCircle2, WifiOff, Clock, Loader2, Monitor, FilePlus } from 'lucide-react';
+import { LayoutDashboard, PieChart, Users, Settings as SettingsIcon, Bell, Sparkles, FileText, Calendar as CalendarIcon, LogOut, Command, MessageSquare, CheckCircle2, WifiOff, Clock, Loader2, Monitor, FilePlus, AlertTriangle } from 'lucide-react';
 import { Transaction, ViewState, Contact, ScheduledItem, TeamMember, CorporateMessage } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionList from './components/TransactionList';
@@ -27,6 +27,7 @@ function App() {
   const [initialChatPrompt, setInitialChatPrompt] = useState<string | null>(null);
   const [isGlobalProcessing, setIsGlobalProcessing] = useState(false);
   const [pendingReviewTx, setPendingReviewTx] = useState<Transaction | null>(null);
+  const [apiKeyMissing, setApiKeyMissing] = useState(false);
 
   const [language, setLanguage] = useState<'pt-BR' | 'en-US' | 'es-ES'>(() => (localStorage.getItem('maestria_lang') as any) || 'pt-BR');
   const [companyInfo, setCompanyInfo] = useState(() => {
@@ -45,6 +46,12 @@ function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
+    // Verifica se a API KEY está disponível no ambiente
+    if (!process.env.API_KEY || process.env.API_KEY === 'undefined') {
+      console.warn("MaestrIA: API_KEY não detectada nas variáveis de ambiente.");
+      setApiKeyMissing(true);
+    }
+
     const savedAuth = localStorage.getItem('maestria_auth');
     if (savedAuth) try { setUser(JSON.parse(savedAuth)); } catch (e) {}
 
@@ -74,6 +81,10 @@ function App() {
   }, [transactions, contacts, schedule, team, corporateMessages, categories, isLoaded, user, view, companyInfo]);
 
   const handleGlobalScan = async (file: File, type: 'transaction' | 'contact', reviewRequired: boolean = false) => {
+    if (apiKeyMissing) {
+      alert("A Inteligência Artificial está desativada. Configure a API_KEY na Vercel e faça um novo deploy.");
+      return;
+    }
     setIsGlobalProcessing(true);
     const reader = new FileReader();
 
@@ -101,7 +112,7 @@ function App() {
         reader.readAsDataURL(file);
       }
     } catch (err) {
-      alert("Falha no MaestrIA Cloud.");
+      alert("Erro ao conectar com o MaestrIA Cloud.");
       setIsGlobalProcessing(false);
     }
   };
@@ -159,7 +170,10 @@ function App() {
         setContacts(prev => [...mapped, ...prev]);
         setView(ViewState.CONTACTS);
       }
-    } catch (e) { alert("Erro na leitura estruturada."); }
+    } catch (e) { 
+      console.error("Erro no parse da IA:", e);
+      alert("A IA retornou um formato inesperado. Tente novamente."); 
+    }
     finally { setIsGlobalProcessing(false); }
   };
 
@@ -202,6 +216,11 @@ function App() {
       </aside>
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        {apiKeyMissing && (
+          <div className="bg-rose-600 text-white px-8 py-2 text-[10px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 animate-pulse z-[200]">
+            <AlertTriangle className="w-4 h-4" /> ATENÇÃO: API_KEY NÃO CONFIGURADA. RECURSOS DE IA ESTÃO DESATIVADOS.
+          </div>
+        )}
         <header className="h-20 bg-white/80 backdrop-blur-2xl border-b border-slate-100 flex items-center justify-between px-8 z-[140]">
           <div className="flex items-center gap-5">
               <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase italic">{view}</h2>
